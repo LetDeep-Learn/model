@@ -54,8 +54,8 @@ SKETCH_ROOT = "dataset_unpaired/sketches" # sketches-only dataset for phase 2
 # ----------------------------
 # Checkpoints
 # ----------------------------
-DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints"           # Phase 1 checkpoints
-PHASE2_CHECKPOINT_DIR = "/content/drive/MyDrive/sketch_project/checkpoints_phase2"  # Phase 2
+DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints_clear"           # Phase 1 checkpoints
+PHASE2_CHECKPOINT_DIR = "/content/drive/MyDrive/sketch_project/checkpoints_phase2_clear"  # Phase 2
 os.makedirs(DRIVE_PATH, exist_ok=True)
 os.makedirs(PHASE2_CHECKPOINT_DIR, exist_ok=True)
 

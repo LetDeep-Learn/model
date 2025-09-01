@@ -54,6 +54,8 @@ class SketchDataset(Dataset):
 
         # Apply transforms
         img_tensor = self.transform(img)
+        if img_tensor.shape[0] == 1:  # [C,H,W]
+          img_tensor = img_tensor.repeat(3, 1, 1)
 
         return {
             "sketch": img_tensor  # [1, H, W] in [-1,1]

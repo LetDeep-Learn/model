@@ -77,16 +77,16 @@
 
 import torch
 from torchvision import transforms
-from PIL import Image
+from PIL import Image,ImageEnhance
 import matplotlib.pyplot as plt
 from dataset import resize_with_padding
 from model import UNetGenerator
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/generator_stage1_epoch5.pth"
+CHECKPOINT_PATH = "weights/generator_stage1_epoch35.pth"
 # CHECKPOINT_PATH = "/content/rive/MyDrive/sketch_project/checkpoints/generator_stage1_epoch25.pth"
 
-IMG_PATH = "test_img/4.jpg"
+IMG_PATH = "test_img/9.jpg"
 IMG_SIZE = 512
 SAVE_PATH = "generated_output.png"
 
@@ -98,7 +98,10 @@ generator.to(DEVICE)
 generator.eval()
 
 # Preprocess
+ss=Image.open(IMG_PATH)
 img = Image.open(IMG_PATH).convert("L")
+# img = Image.open(IMG_PATH)
+
 img = resize_with_padding(img, IMG_SIZE)
 
 transform = transforms.Compose([
@@ -120,6 +123,8 @@ fake_img = fake_img.squeeze(0).cpu()
 fake_img = (fake_img * 0.5 + 0.5).clamp(0,1)
 fake_pil = transforms.ToPILImage()(fake_img)
 
+enhancer=ImageEnhance.Contrast(fake_pil)
+fake_pil=enhancer.enhance(1.6)
 # Save & visualize
 fake_pil.save(SAVE_PATH)
 print(f"Generated image saved at {SAVE_PATH}")
@@ -127,7 +132,7 @@ print(f"Generated image saved at {SAVE_PATH}")
 plt.figure(figsize=(8,4))
 plt.subplot(1,2,1)
 plt.title("Input Sketch")
-plt.imshow(img, cmap="gray")
+plt.imshow(ss)
 plt.axis("off")
 
 plt.subplot(1,2,2)
