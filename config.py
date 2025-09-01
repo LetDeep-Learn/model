@@ -4,6 +4,7 @@ import os
 # ----------------------------
 # Paths
 # ----------------------------
+SKETCH_ROOT="dataset_unpaired"
 DATA_ROOT = "dataset"  # must contain subfolders: photos/ and sketches/
 DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints"
 os.makedirs(DRIVE_PATH, exist_ok=True)

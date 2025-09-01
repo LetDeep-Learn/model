@@ -83,10 +83,10 @@ from dataset import resize_with_padding
 from model import UNetGenerator
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# CHECKPOINT_PATH = "weights/generator_stage1_epoch5.pth"
-CHECKPOINT_PATH = "/content/rive/MyDrive/sketch_project/checkpoints/generator_stage1_epoch25.pth"
+CHECKPOINT_PATH = "weights/generator_stage1_epoch5.pth"
+# CHECKPOINT_PATH = "/content/rive/MyDrive/sketch_project/checkpoints/generator_stage1_epoch25.pth"
 
-IMG_PATH = "dataset/photos/0.jpg"
+IMG_PATH = "test_img/4.jpg"
 IMG_SIZE = 512
 SAVE_PATH = "generated_output.png"
 
@@ -132,6 +132,6 @@ plt.axis("off")
 
 plt.subplot(1,2,2)
 plt.title("Generated Image")
-plt.imshow(fake_pil)
+plt.imshow(fake_pil,cmap="gray")
 plt.axis("off")
 plt.show()

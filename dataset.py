@@ -8,6 +8,64 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+
+
+
+# dataset_phase2.py
+
+class SketchDataset(Dataset):
+    """
+    Dataset for sketch-only images for Phase 2 fine-tuning.
+    Resizes images with padding to preserve aspect ratio.
+    """
+
+    def __init__(self, root_dir, image_size=512):
+        """
+        Args:
+            root_dir (str): Path to directory containing sketch images.
+            image_size (int): Target image size (e.g., 512x512)
+        """
+        super().__init__()
+        self.root_dir = root_dir
+        self.image_size = image_size
+
+        # Collect all image paths
+        self.files = sorted([
+            os.path.join(root_dir, f)
+            for f in os.listdir(root_dir)
+            if f.lower().endswith((".png", ".jpg", ".jpeg"))
+        ])
+
+        # Transform: convert to tensor and normalize to [-1,1]
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5])  # sketch is grayscale
+        ])
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        path = self.files[idx]
+        img = Image.open(path).convert("L")  # grayscale
+
+        # Resize with padding to preserve aspect ratio
+        img = resize_with_padding(img, target_size=self.image_size, pad_color=(0, 0, 0))
+
+        # Apply transforms
+        img_tensor = self.transform(img)
+
+        return {
+            "sketch": img_tensor  # [1, H, W] in [-1,1]
+        }
+
+
+
+
+
+
+
+
 class PairedDataset(Dataset):
     """Paired (photo, sketch) dataset under one root: photos/ and sketches/.
     Filenames are expected to match across both subfolders.
