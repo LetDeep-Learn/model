@@ -63,16 +63,12 @@ class PairedDataset(Dataset):
 
 
 
-def resize_with_padding(img, target_size=512, pad_color=(0, 0, 0)):
-    """
-    Resize image while keeping aspect ratio and pad to target_size x target_size.
-    Args:
-        img (PIL.Image): Input image
-        target_size (int): Final desired size (e.g. 512)
-        pad_color (tuple): RGB pad color (default black)
-    Returns:
-        PIL.Image: Resized and padded image (512x512)
-    """
+def resize_with_padding(img, target_size=512, pad_color=None):
+    if pad_color is None:
+        if img.mode == "L":
+            pad_color = 0           # grayscale black
+        else:
+            pad_color = (0, 0, 0) 
     # Scale based on longest side
     ratio = float(target_size) / max(img.size)
     new_size = tuple([int(x * ratio) for x in img.size])
