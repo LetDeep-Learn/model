@@ -47,7 +47,7 @@ class EdgeLoss(nn.Module):
         Gy_target = nn.functional.conv2d(target, self.sobel_y, padding=1)
         return nn.functional.l1_loss(Gx_pred, Gx_target) + nn.functional.l1_loss(Gy_pred, Gy_target)
 
-EDGE_WEIGHT = 10.0  # adjust for sharper boundaries
+EDGE_WEIGHT = 1.6  # adjust for sharper boundaries
 
 # ----------------------------
 # Helpers
@@ -126,7 +126,7 @@ for epoch in range(start_epoch, EPOCHS):
     for batch in train_loader:
         photo = batch["photo"].to(device, non_blocking=True)
         sketch = batch["sketch"].to(device, non_blocking=True)
-
+        sketch = sketch / 127.5 - 1.0  # normalize to [-1, 1]
         # ------------------
         # Train D
         # ------------------

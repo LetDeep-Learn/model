@@ -7,7 +7,9 @@ from model import UNetGenerator
 
 # ===== CONFIG =====
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/generator_stage1_epoch5.pth"
+CHECKPOINT_PATH = "weights/generator_stage1_epoch30_clear.pth"
+# CHECKPOINT_PATH = "weights/generator_epoch3.pth"
+
 IMG_SIZE = 512
 INPUT_DIR = "test_img"
 OUTPUT_DIR = "output"
@@ -35,6 +37,8 @@ for filename in os.listdir(INPUT_DIR):
 
         # Load and preprocess image
         img = Image.open(img_path).convert("L")
+        # img = Image.open(img_path).convert("RGB")
+
         img = resize_with_padding(img, IMG_SIZE)
         input_tensor = transform(img).unsqueeze(0)
 

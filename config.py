@@ -70,7 +70,8 @@ BATCH_SIZE = 4
 VAL_SPLIT = 0.05
 
 # Phase 1 & Phase 2 can have different epoch counts
-EPOCHS_PHASE1 = 100
+# EPOCHS_PHASE1 = 100
+EPOCHS = 100
 EPOCHS_PHASE2 = 50  # integer! number of epochs
 
 LR = 2e-4
