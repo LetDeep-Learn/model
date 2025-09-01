@@ -2,6 +2,7 @@
 ## `dataset.py`
 
 import os
+from PIL import Image, ImageOps
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
@@ -26,15 +27,27 @@ class PairedDataset(Dataset):
             raise RuntimeError("No matching filenames found in photos/ and sketches/.")
 
         self.tf_photo = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
+            transforms.Lambda(lambda img: resize_with_padding(img, image_size)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
         ])
+
         self.tf_sketch = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
+            transforms.Lambda(lambda img: resize_with_padding(img, image_size)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5], std=[0.5])
         ])
+
+        # self.tf_photo = transforms.Compose([
+        #     transforms.Resize((image_size, image_size)),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        # ])
+        # self.tf_sketch = transforms.Compose([
+        #     transforms.Resize((image_size, image_size)),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize(mean=[0.5], std=[0.5])
+        # ])
 
     def __len__(self):
         return len(self.files)
@@ -48,3 +61,72 @@ class PairedDataset(Dataset):
             "sketch": self.tf_sketch(sketch)      # [1, H, W] in [-1,1]
         }
 
+
+
+def resize_with_padding(img, target_size=512, pad_color=(0, 0, 0)):
+    """
+    Resize image while keeping aspect ratio and pad to target_size x target_size.
+    Args:
+        img (PIL.Image): Input image
+        target_size (int): Final desired size (e.g. 512)
+        pad_color (tuple): RGB pad color (default black)
+    Returns:
+        PIL.Image: Resized and padded image (512x512)
+    """
+    # Scale based on longest side
+    ratio = float(target_size) / max(img.size)
+    new_size = tuple([int(x * ratio) for x in img.size])
+    img = img.resize(new_size, Image.BICUBIC)
+
+    # Pad to 512x512
+    delta_w = target_size - new_size[0]
+    delta_h = target_size - new_size[1]
+    padding = (delta_w // 2, delta_h // 2,
+               delta_w - (delta_w // 2), delta_h - (delta_h // 2))
+    img = ImageOps.expand(img, padding, fill=pad_color)
+
+    return img
+
+
+def restore_original_aspect(output_img, new_size, padding, orig_size):
+    """
+    Restore model output (square) back to original aspect ratio.
+    """
+    # Crop padding
+    left, top, right, bottom = padding
+    crop_box = (left, top, 512 - right, 512 - bottom)
+    cropped = output_img.crop(crop_box)
+
+    # Resize to original
+    restored = cropped.resize(orig_size, Image.BICUBIC)
+    return restored
+
+
+def remove_padding_and_resize(img, original_size):
+    """
+    Crop out padding from a square image and resize back to original size.
+    Args:
+        img (PIL.Image): Model output (square, e.g. 512x512).
+        original_size (tuple): (width, height) of the original input.
+    Returns:
+        PIL.Image: Restored image with original aspect ratio.
+    """
+    target_size = img.size[0]  # square side (e.g. 512)
+    orig_w, orig_h = original_size
+
+    # Find scaling ratio
+    ratio = float(target_size) / max(orig_w, orig_h)
+    new_w, new_h = int(orig_w * ratio), int(orig_h * ratio)
+
+    # Compute padding (must match resize_with_padding)
+    delta_w = target_size - new_w
+    delta_h = target_size - new_h
+    left, top = delta_w // 2, delta_h // 2
+    right, bottom = left + new_w, top + new_h
+
+    # Crop out the padded region
+    img_cropped = img.crop((left, top, right, bottom))
+
+    # Resize back to original
+    img_restored = img_cropped.resize((orig_w, orig_h), Image.BICUBIC)
+    return img_restored
