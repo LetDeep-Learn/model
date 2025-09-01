@@ -1,30 +1,67 @@
 import torch
+from torchvision import transforms
 from PIL import Image
-import torchvision.transforms as T
-import cv2
+import matplotlib.pyplot as plt
 
-# Load model
-device = "cuda" if torch.cuda.is_available() else "cpu"
-G = UNetGenerator().to(device)
-G.load_state_dict(torch.load("generator_epoch100.pth", map_location=device))
-G.eval()
+# from model.generator import Generator  # if you had this
+from model import UNetGenerator
 
-# Preprocess input
-transform = T.Compose([
-    T.Resize((256,256)),
-    T.ToTensor(),
-    T.Normalize([0.5,0.5,0.5], [0.5,0.5,0.5])
+# ===== CONFIG =====
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+CHECKPOINT_PATH = "/content/drive/MyDrive/sketch_project/checkpoints/generator_stage1_epoch25.pth"
+IMG_PATH = "img1.png"  # <-- replace with your test sketch path
+IMG_SIZE = 512  # match whatever size you trained with
+SAVE_PATH = "generated_output.png"  # where to save result
+
+# ===== LOAD MODEL =====
+generator = UNetGenerator(3, 1)  # adjust in/out channels if needed
+
+# Always load checkpoint to CPU first, then move model to DEVICE
+state_dict = torch.load(CHECKPOINT_PATH, map_location="cpu")
+generator.load_state_dict(state_dict)
+generator.to(DEVICE)
+generator.eval()
+
+# ===== PREPROCESS INPUT =====
+transform = transforms.Compose([
+    transforms.Resize((IMG_SIZE, IMG_SIZE)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.5], [0.5])  # same normalization as training
 ])
 
-img = Image.open("input.jpg").convert("RGB")
-x = transform(img).unsqueeze(0).to(device)
+img = Image.open(IMG_PATH).convert("L")  # sketch is grayscale
+input_tensor = transform(img).unsqueeze(0)  # [1,1,H,W]
 
-# Forward pass
+# If model expects 3 channels, repeat grayscale 3 times
+if input_tensor.shape[1] == 1:
+    input_tensor = input_tensor.repeat(1, 3, 1, 1)
+
+input_tensor = input_tensor.to(DEVICE)
+
+# ===== RUN INFERENCE =====
 with torch.no_grad():
-    y_pred = G(x)
+    fake_img = generator(input_tensor)
 
-# Postprocess
-y_pred = (y_pred.squeeze().cpu().numpy() + 1) / 2.0  # to [0,1]
-y_pred = (y_pred * 255).astype("uint8")
+# ===== POSTPROCESS =====
+fake_img = fake_img.squeeze(0).cpu()
+fake_img = (fake_img * 0.5 + 0.5).clamp(0, 1)  # de-normalize
 
-cv2.imwrite("sketch.png", y_pred)
+# Convert tensor to PIL for saving and visualization
+fake_pil = transforms.ToPILImage()(fake_img)
+
+# ===== SAVE =====
+fake_pil.save(SAVE_PATH)
+print(f"Generated image saved at {SAVE_PATH}")
+
+# ===== VISUALIZE =====
+plt.figure(figsize=(8,4))
+plt.subplot(1,2,1)
+plt.title("Input Sketch")
+plt.imshow(img, cmap="gray")
+plt.axis("off")
+
+plt.subplot(1,2,2)
+plt.title("Generated Image")
+plt.imshow(fake_pil)
+plt.axis("off")
+plt.show()

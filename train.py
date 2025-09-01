@@ -78,8 +78,13 @@ D = PatchDiscriminator().to(device)
 
 criterion_gan = nn.BCEWithLogitsLoss()
 criterion_l1 = nn.L1Loss()
-criterion_perc = PerceptualLoss(weight=LAMBDA_PERC).to(device)
-
+# old     criterion_perc = PerceptualLoss(weight=LAMBDA_PERC).to(device)
+criterion_perc = PerceptualLoss(
+    layer_ids=(3, 8, 15, 22),
+    layer_weights={3: 1.0, 8: 0.75, 15: 0.5, 22: 0.25},
+    perceptual_weight=0.2,
+    pixel_weight=1.0
+).to(device)
 optG = optim.Adam(G.parameters(), lr=LR, betas=BETAS)
 optD = optim.Adam(D.parameters(), lr=LR, betas=BETAS)
 

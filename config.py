@@ -15,7 +15,7 @@ IMAGE_SIZE = 512             # drop to 256 on small GPUs
 BATCH_SIZE = 4
 VAL_SPLIT = 0.2              # random split from single folder
 EPOCHS = 100
-LR = 2e-4
+LR = 1e-4
 BETAS = (0.5, 0.999)
 
 # Loss weights
