@@ -17,7 +17,7 @@ os.makedirs(DRIVE_PATH, exist_ok=True)
 # ----------------------------
 class PairedDataset(Dataset):
     """(photo, sketch) pairs"""
-    def __init__(self, root_dir, split="train", image_size=256):
+    def __init__(self, root_dir, split="train", image_size=512):
         self.photo_dir = os.path.join(root_dir, split, "photos")
         self.sketch_dir = os.path.join(root_dir, split, "sketches")
         self.files = os.listdir(self.photo_dir)
@@ -43,7 +43,7 @@ class PairedDataset(Dataset):
 
 class SketchDataset(Dataset):
     """unpaired sketches only"""
-    def __init__(self, root_dir, split="train", image_size=256):
+    def __init__(self, root_dir, split="train", image_size=512):
         self.sketch_dir = os.path.join(root_dir, split, "sketches")
         self.files = os.listdir(self.sketch_dir)
         self.transform = transforms.Compose([

@@ -1,200 +1,169 @@
+## `train.py`
+
 import os
+import math
+import random
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from torchvision.models import vgg16
-from PIL import Image
+import torch.optim as optim
+from torch.utils.data import DataLoader, random_split
+from torch.cuda.amp import GradScaler, autocast
+
+from config import (
+    DATA_ROOT, DRIVE_PATH, IMAGE_SIZE, BATCH_SIZE, VAL_SPLIT, EPOCHS,
+    LR, BETAS, LAMBDA_L1, LAMBDA_PERC, SAVE_EVERY, RESUME_PATH, SAVE_LATEST,
+    USE_AMP, SEED
+)
+from dataset import PairedDataset
+from model import UNetGenerator, PatchDiscriminator, PerceptualLoss
+
+# Extra safety to locate autograd issues
+torch.autograd.set_detect_anomaly(True)
+
+# Reproducibility
+random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------
-# Global Drive Path
+# Helpers
 # ----------------------------
-DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints"
-os.makedirs(DRIVE_PATH, exist_ok=True)
 
-# ----------------------------
-# Dataset
-# ----------------------------
-class PairedDataset(Dataset):
-    def __init__(self, root_dir, split="train", image_size=256):
-        self.photo_dir = os.path.join(root_dir, split, "photos")
-        self.sketch_dir = os.path.join(root_dir, split, "sketches")
-        self.files = os.listdir(self.photo_dir)
+def make_loaders():
+    ds = PairedDataset(DATA_ROOT, image_size=IMAGE_SIZE)
+    val_len = max(1, int(len(ds) * VAL_SPLIT))
+    train_len = len(ds) - val_len
+    train_ds, val_ds = random_split(ds, [train_len, val_len])
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2, pin_memory=True)
+    return train_loader, val_loader
 
-        self.transform_photo = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5,0.5,0.5], std=[0.5,0.5,0.5])  # RGB → [-1,1]
-        ])
 
-        self.transform_sketch = transforms.Compose([
-            transforms.Resize((image_size, image_size)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5], std=[0.5])  # grayscale → [-1,1]
-        ])
+def save_ckpt(epoch, G, D, optG, optD, scaler, path):
+    payload = {
+        "epoch": epoch,
+        "G": G.state_dict(),
+        "D": D.state_dict(),
+        "optG": optG.state_dict(),
+        "optD": optD.state_dict(),
+        "scaler": scaler.state_dict() if scaler is not None else None,
+        "image_size": IMAGE_SIZE,
+    }
+    torch.save(payload, path)
 
-    def __len__(self):
-        return len(self.files)
 
-    def __getitem__(self, idx):
-        fname = self.files[idx]
-        photo = Image.open(os.path.join(self.photo_dir, fname)).convert("RGB")
-        sketch = Image.open(os.path.join(self.sketch_dir, fname)).convert("L")
+def maybe_resume(path, G, D, optG, optD, scaler):
+    if path is None or not os.path.exists(path):
+        return 0
+    ckpt = torch.load(path, map_location=device)
+    G.load_state_dict(ckpt["G"])  # strict=True on purpose
+    D.load_state_dict(ckpt["D"])  # strict=True to catch arch drift
+    optG.load_state_dict(ckpt["optG"]) if "optG" in ckpt else None
+    optD.load_state_dict(ckpt["optD"]) if "optD" in ckpt else None
+    if scaler is not None and ckpt.get("scaler") is not None:
+        scaler.load_state_dict(ckpt["scaler"])
+    start_epoch = int(ckpt.get("epoch", 0))
+    print(f"Resumed from {path} at epoch {start_epoch}")
+    return start_epoch
 
-        return {
-            "photo": self.transform_photo(photo),
-            "sketch": self.transform_sketch(sketch)
-        }
-
-# ----------------------------
-# UNet Generator
-# ----------------------------
-class UNetBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, down=True, dropout=False):
-        super().__init__()
-        if down:
-            self.conv = nn.Sequential(
-                nn.Conv2d(in_ch, out_ch, 4, 2, 1, bias=False),
-                nn.BatchNorm2d(out_ch),
-                nn.LeakyReLU(0.2, inplace=True)
-            )
-        else:
-            self.conv = nn.Sequential(
-                nn.ConvTranspose2d(in_ch, out_ch, 4, 2, 1, bias=False),
-                nn.BatchNorm2d(out_ch),
-                nn.ReLU(inplace=True)
-            )
-        self.dropout = nn.Dropout(0.5) if dropout else None
-
-    def forward(self, x):
-        x = self.conv(x)
-        if self.dropout:
-            x = self.dropout(x)
-        return x
-
-class UNetGenerator(nn.Module):
-    def __init__(self, in_ch=3, out_ch=1):
-        super().__init__()
-        # encoder
-        self.d1 = UNetBlock(in_ch, 64)       # 256 -> 128
-        self.d2 = UNetBlock(64, 128)         # 128 -> 64
-        self.d3 = UNetBlock(128, 256)        # 64 -> 32
-        self.d4 = UNetBlock(256, 512)        # 32 -> 16
-        self.d5 = UNetBlock(512, 512)        # 16 -> 8
-        self.d6 = UNetBlock(512, 512)        # 8 -> 4
-        self.d7 = UNetBlock(512, 512)        # 4 -> 2
-        self.d8 = UNetBlock(512, 512)        # 2 -> 1
-
-        # decoder
-        self.u1 = UNetBlock(512, 512, down=False, dropout=True)
-        self.u2 = UNetBlock(1024, 512, down=False, dropout=True)
-        self.u3 = UNetBlock(1024, 512, down=False, dropout=True)
-        self.u4 = UNetBlock(1024, 512, down=False)
-        self.u5 = UNetBlock(1024, 256, down=False)
-        self.u6 = UNetBlock(512, 128, down=False)
-        self.u7 = UNetBlock(256, 64, down=False)
-
-        self.final = nn.Sequential(
-            nn.ConvTranspose2d(128, out_ch, 4, 2, 1),
-            nn.Tanh()
-        )
-
-    def forward(self, x):
-        d1 = self.d1(x); d2 = self.d2(d1); d3 = self.d3(d2); d4 = self.d4(d3)
-        d5 = self.d5(d4); d6 = self.d6(d5); d7 = self.d7(d6); d8 = self.d8(d7)
-
-        u1 = self.u1(d8)
-        u2 = self.u2(torch.cat([u1, d7], 1))
-        u3 = self.u3(torch.cat([u2, d6], 1))
-        u4 = self.u4(torch.cat([u3, d5], 1))
-        u5 = self.u5(torch.cat([u4, d4], 1))
-        u6 = self.u6(torch.cat([u5, d3], 1))
-        u7 = self.u7(torch.cat([u6, d2], 1))
-        out = self.final(torch.cat([u7, d1], 1))
-        return out
 
 # ----------------------------
-# Perceptual Loss (VGG16 features)
+# Build
 # ----------------------------
-class PerceptualLoss(nn.Module):
-    def __init__(self, layer_ids=[3, 8, 15], weight=1.0):
-        super().__init__()
-        vgg = vgg16(weights="IMAGENET1K_V1").features
-        self.layers = nn.ModuleList([vgg[i] for i in layer_ids])
-        for p in self.layers:
-            for param in p.parameters():
-                param.requires_grad = False
-        self.weight = weight
+train_loader, val_loader = make_loaders()
+G = UNetGenerator().to(device)
+D = PatchDiscriminator().to(device)
 
-    def forward(self, x, y):
-        loss = 0
-        for layer in self.layers:
-            x = layer(x); y = layer(y)
-            loss += nn.functional.l1_loss(x, y)
-        return loss * self.weight
+criterion_gan = nn.BCEWithLogitsLoss()
+criterion_l1 = nn.L1Loss()
+criterion_perc = PerceptualLoss(weight=LAMBDA_PERC).to(device)
+
+optG = optim.Adam(G.parameters(), lr=LR, betas=BETAS)
+optD = optim.Adam(D.parameters(), lr=LR, betas=BETAS)
+
+scaler = GradScaler(enabled=USE_AMP)
+
+# Resume
+start_epoch = 0
+resume_source = RESUME_PATH if RESUME_PATH else (os.path.join(DRIVE_PATH, "latest.pth") if SAVE_LATEST else None)
+start_epoch = maybe_resume(resume_source, G, D, optG, optD, scaler)
 
 # ----------------------------
-# Training Loop
+# Training
 # ----------------------------
-def train(resume_checkpoint=None):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+for epoch in range(start_epoch, EPOCHS):
+    G.train(); D.train()
+    running_g, running_d = 0.0, 0.0
 
-    # Data
-    train_ds = PairedDataset("dataset", "train")
-    val_ds = PairedDataset("dataset", "val")
-    train_loader = DataLoader(train_ds, batch_size=4, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=4)
+    for batch in train_loader:
+        photo = batch["photo"].to(device, non_blocking=True)
+        sketch = batch["sketch"].to(device, non_blocking=True)
 
-    # Model
-    G = UNetGenerator().to(device)
-    l1_loss = nn.L1Loss()
-    perc_loss = PerceptualLoss().to(device)
+        # ------------------
+        # Train D
+        # ------------------
+        optD.zero_grad(set_to_none=True)
+        with autocast(enabled=USE_AMP):
+            fake = G(photo)
+            logits_real = D(photo, sketch)
+            logits_fake = D(photo, fake.detach())
+            loss_d_real = criterion_gan(logits_real, torch.ones_like(logits_real))
+            loss_d_fake = criterion_gan(logits_fake, torch.zeros_like(logits_fake))
+            loss_d = 0.5 * (loss_d_real + loss_d_fake)
+        scaler.scale(loss_d).backward()
+        scaler.step(optD)
+        # don't update scaler between optimizers; scale carries across safely
 
-    opt = torch.optim.Adam(G.parameters(), lr=2e-4, betas=(0.5, 0.999))
+        # ------------------
+        # Train G
+        # ------------------
+        optG.zero_grad(set_to_none=True)
+        with autocast(enabled=USE_AMP):
+            fake = G(photo)
+            logits_fake_for_g = D(photo, fake)
+            adv_g = criterion_gan(logits_fake_for_g, torch.ones_like(logits_fake_for_g))
+            l1 = criterion_l1(fake, sketch) * LAMBDA_L1
+            perc = criterion_perc(fake, sketch)  # already weighted
+            loss_g = adv_g + l1 + perc
+        scaler.scale(loss_g).backward()
+        scaler.step(optG)
+        scaler.update()
 
-    start_epoch = 0
-    # Resume if checkpoint provided
-    if resume_checkpoint:
-        ckpt = torch.load(resume_checkpoint, map_location=device)
-        G.load_state_dict(ckpt["model_state"])
-        opt.load_state_dict(ckpt["optimizer_state"])
-        start_epoch = ckpt["epoch"]
-        print(f"Resumed from {resume_checkpoint}, starting at epoch {start_epoch}")
+        running_d += loss_d.item()
+        running_g += loss_g.item()
 
-    # Train
-    epochs = 100
-    for epoch in range(start_epoch, epochs):
-        G.train()
-        total_loss = 0
-        for batch in train_loader:
-            x = batch["photo"].to(device)
-            y = batch["sketch"].to(device)
+    avg_d = running_d / max(1, len(train_loader))
+    avg_g = running_g / max(1, len(train_loader))
+    print(f"Epoch {epoch+1}/{EPOCHS} | D: {avg_d:.4f} | G: {avg_g:.4f}")
 
-            y_pred = G(x)
+    # ------------------
+    # Validation (L1 only for fidelity)
+    # ------------------
+    G.eval()
+    with torch.no_grad():
+        val_l1 = 0.0
+        for batch in val_loader:
+            photo = batch["photo"].to(device)
+            sketch = batch["sketch"].to(device)
+            fake = G(photo)
+            val_l1 += criterion_l1(fake, sketch).item()
+        val_l1 /= max(1, len(val_loader))
+    print(f"  Validation L1: {val_l1:.4f}")
 
-            loss_l1 = l1_loss(y_pred, y) * 100
-            loss_perc = perc_loss(y_pred.repeat(1,3,1,1), y.repeat(1,3,1,1))
-            loss = loss_l1 + loss_perc
+    # ------------------
+    # Checkpointing
+    # ------------------
+    if ((epoch + 1) % SAVE_EVERY) == 0 or (epoch + 1) == EPOCHS:
+        ep_path = os.path.join(DRIVE_PATH, f"epoch{epoch+1}.pth")
+        save_ckpt(epoch + 1, G, D, optG, optD, scaler, ep_path)
+        if SAVE_LATEST:
+            latest = os.path.join(DRIVE_PATH, "latest.pth")
+            save_ckpt(epoch + 1, G, D, optG, optD, scaler, latest)
+        # Also save a Stage-1 generator-only snapshot for Phase 2 fine-tune
+        g_only = os.path.join(DRIVE_PATH, f"generator_stage1_epoch{epoch+1}.pth")
+        torch.save(G.state_dict(), g_only)
+        print(f"Saved checkpoints to {DRIVE_PATH}")
 
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-
-            total_loss += loss.item()
-
-        print(f"Epoch {epoch+1}/{epochs} - Train Loss: {total_loss/len(train_loader):.4f}")
-
-        # Save checkpoint every 10 epochs
-        if (epoch+1) % 10 == 0:
-            ckpt_path = os.path.join(DRIVE_PATH, f"generator_epoch{epoch+1}.pth")
-            torch.save({
-                "epoch": epoch+1,
-                "model_state": G.state_dict(),
-                "optimizer_state": opt.state_dict()
-            }, ckpt_path)
-            print(f"Checkpoint saved at {ckpt_path}")
-
-if __name__ == "__main__":
-    # Example usage: resume from epoch 20
-    # train(resume_checkpoint=os.path.join(DRIVE_PATH, "generator_epoch20.pth"))
-    train()
+print("Training complete.")
