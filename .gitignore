@@ -1,7 +1,14 @@
-weights/
+__pycache__/
+dataset/
+dataset_unpaired/
 e/
-output/
-weights_outputs/
 new_weights/
 new_weights_output/
+output/
+post_processed_images/
+test/
+test_img/
+test_jpg/
+test_out/
+weights/
 weights_output/
