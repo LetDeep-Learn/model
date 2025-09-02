@@ -106,8 +106,19 @@ criterion_perc = PerceptualLoss(
     pixel_weight=1.0
 ).to(device)
 
+# optG = optim.Adam(G.parameters(), lr=LR, betas=BETAS)  OLDDDD
+# optD = optim.Adam(D.parameters(), lr=LR, betas=BETAS)
+# Add LR schedulers
+# Your existing optimizers
 optG = optim.Adam(G.parameters(), lr=LR, betas=BETAS)
 optD = optim.Adam(D.parameters(), lr=LR, betas=BETAS)
+
+# Add LR schedulers using the SAME names
+G_scheduler = optim.lr_scheduler.MultiStepLR(optG, milestones=[20, 30], gamma=0.5)
+D_scheduler = optim.lr_scheduler.MultiStepLR(optD, milestones=[20, 30], gamma=0.5)
+
+# scaler = GradScaler(enabled=USE_AMP)
+
 
 scaler = GradScaler(enabled=USE_AMP)
 
@@ -159,6 +170,9 @@ for epoch in range(start_epoch, EPOCHS):
 
         running_d += loss_d.item()
         running_g += loss_g.item()
+
+    G_scheduler.step()# if not work remove this
+    D_scheduler.step()
 
     avg_d = running_d / max(1, len(train_loader))
     avg_g = running_g / max(1, len(train_loader))
