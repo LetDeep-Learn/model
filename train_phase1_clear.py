@@ -126,7 +126,7 @@ for epoch in range(start_epoch, EPOCHS):
     for batch in train_loader:
         photo = batch["photo"].to(device, non_blocking=True)
         sketch = batch["sketch"].to(device, non_blocking=True)
-        sketch = sketch / 127.5 - 1.0  # normalize to [-1, 1]
+        # sketch = sketch / 127.5 - 1.0  # normalize to [-1, 1]
         # ------------------
         # Train D
         # ------------------

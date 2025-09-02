@@ -11,9 +11,10 @@ CHECKPOINT_PATH = "weights/generator_stage1_epoch30_clear.pth"
 # CHECKPOINT_PATH = "weights/generator_epoch3.pth"
 
 IMG_SIZE = 512
-INPUT_DIR = "test_img"
-OUTPUT_DIR = "output"
-
+# INPUT_DIR = "test_img"
+# OUTPUT_DIR = "output"
+INPUT_DIR = "test_jpg"
+OUTPUT_DIR = "test_out"
 # ===== LOAD MODEL =====
 generator = UNetGenerator(3, 1)
 state_dict = torch.load(CHECKPOINT_PATH, map_location="cpu")
