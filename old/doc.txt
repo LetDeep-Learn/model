@@ -1,0 +1,111 @@
+🖼️ Image2Sketch GAN
+
+This project converts real photos → clean pencil-style sketches using a U-Net Generator + PatchGAN Discriminator (Pix2Pix-style).
+
+The model is trained on paired datasets of photos and sketches.
+
+📌 Project Overview
+
+Goal: Take a normal photo as input → generate a sketch-like output.
+
+Model type: Conditional GAN (Pix2Pix framework).
+
+Generator: U-Net (Encoder-Decoder with skip connections).
+
+Discriminator: PatchGAN (judges local regions of the image).
+
+⚙️ How It Works
+1. Generator (U-Net)
+
+Encoder compresses the photo into features.
+
+Decoder reconstructs features into a sketch.
+
+Skip connections pass fine details directly (preserve edges).
+
+2. Discriminator (PatchGAN)
+
+Splits image into small patches (e.g., 70×70).
+
+Judges each patch → real or fake sketch.
+
+Helps Generator make sharper, realistic results.
+
+🗂️ Project Structure
+image2sketch/
+│── data/               # Training dataset (photo-sketch pairs)
+│── models/             # Generator + Discriminator architectures
+│── train.py            # Training script
+│── inference.py        # Generate sketch from new photos
+│── utils.py            # Helper functions (normalization, saving images, etc.)
+│── saved_models/       # Checkpoints (.pth files for generator & discriminator)
+│── README.md           # Project documentation
+
+📐 Data Flow Diagram (DFD)
+
+Here’s a simple DFD-style breakdown:
+
+[ Input Photo ] 
+       │
+       ▼
++------------------+
+|   U-Net Encoder  |   ← Extracts features (edges, textures)
++------------------+
+       │
+       ▼
++------------------+
+|   U-Net Decoder  |   ← Rebuilds sketch with details
++------------------+
+       │
+       ▼
+[ Generated Sketch ] ---------------------+
+                                          │
+                                    +-----------+
+                                    | PatchGAN  |
+[ Real Sketch ] ------------------> |           |
+                                    | Discriminator |
+                                    +-----------+
+                                          │
+                                Decides Real / Fake
+
+
+📝 Explanation:
+
+Generator (U-Net) makes a sketch.
+
+Discriminator (PatchGAN) compares it with real sketches → gives feedback.
+
+During inference → we only use the Generator.
+
+🚀 Training
+
+Prepare dataset (photo-sketch pairs).
+
+Run training script:
+
+python train.py
+
+
+Checkpoints will be saved in saved_models/.
+
+🎨 Inference (Testing)
+
+Use trained generator to create sketches from new photos:
+
+python inference.py --input path/to/photo.jpg --output path/to/sketch.jpg
+
+
+Only the generator weights are needed at this stage.
+
+🔑 Key Notes
+
+Learning Rate: Start with 2e-4.
+
+If loss stagnates → decrease (e.g., 1e-4).
+
+If training unstable → decrease too.
+
+Saved Weights: Only U-Net Generator is used for inference.
+
+Discriminator: Only helps during training, not needed later.
+

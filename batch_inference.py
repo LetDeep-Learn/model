@@ -7,7 +7,7 @@ from model import UNetGenerator
 
 # ===== CONFIG =====
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/generator_stage1_epoch30_clear.pth"
+CHECKPOINT_PATH = "weights/generator_stage1_epoch70.pth"
 # CHECKPOINT_PATH = "weights/generator_epoch3.pth"
 
 IMG_SIZE = 512
@@ -35,7 +35,8 @@ for filename in os.listdir(INPUT_DIR):
     if filename.lower().endswith((".jpg", ".png", ".jpeg", ".bmp")):
         img_path = os.path.join(INPUT_DIR, filename)
         save_path = os.path.join(OUTPUT_DIR, filename)
-
+        base_name = os.path.splitext(filename)[0]
+        save_path = os.path.join(OUTPUT_DIR, base_name + ".jpg")
         # Load and preprocess image
         img = Image.open(img_path).convert("L")
         # img = Image.open(img_path).convert("RGB")

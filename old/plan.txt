@@ -11,6 +11,47 @@ Perfect — you’ve got a great dataset mix. With **900 paired** image→sketch
 This avoids the common pitfall of purely unpaired methods (CycleGAN style) that can produce arbitrary sketches unrelated to the input photo.
 
 ---
+            ┌───────────────────────────┐
+            │         PHOTO             │
+            │      (RGB Input)          │
+            └───────────┬───────────────┘
+                        │
+                        ▼
+                ┌──────────────┐
+                │   Generator  │  (U-Net)
+                │  Encoder-    │
+                │  Bottleneck- │
+                │  Decoder     │
+                └───────┬──────┘
+                        │
+                        ▼
+            ┌───────────────────────────┐
+            │       FAKE SKETCH         │
+            │  (Generated, 1-channel)   │
+            └───────────┬───────────────┘
+                        │
+     ┌──────────────────┼──────────────────┐
+     │                  │                  │
+     ▼                  ▼                  ▼
+ REAL SKETCH     FAKE SKETCH         REAL SKETCH
+ (Ground Truth)  (from Generator)    (from Dataset)
+     │                  │                  │
+     └───────┬──────────┴──────────┬───────┘
+             │                     │
+             ▼                     ▼
+       ┌──────────────┐      ┌──────────────┐
+       │ Discriminator│      │ Discriminator│
+       │   (PatchGAN) │      │   (PatchGAN) │
+       └──────┬───────┘      └──────┬───────┘
+              │                     │
+              ▼                     ▼
+         Score Map:           Score Map:
+        "Real / Fake"         "Real / Fake"
+          per patch             per patch
+
+
+
+
 
 # Concrete pipeline (step-by-step)
 

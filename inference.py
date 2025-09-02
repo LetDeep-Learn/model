@@ -82,11 +82,47 @@ import matplotlib.pyplot as plt
 from dataset import resize_with_padding
 from model import UNetGenerator
 
+
+
+
+
+
+import tkinter as tk
+from tkinter import filedialog
+
+def select_image():
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+    file_path = filedialog.askopenfilename(
+        title="Select an image",
+        filetypes=[("Image files", "*.jpg *.jpeg *.png *.bmp")]
+    )
+    return file_path
+
+# Example usage
+img_path = select_image()
+if img_path:
+    print(f"📂 Selected: {img_path}")
+    # You can now pass img_path to your inference code
+else:
+    print("⚠️ No image selected.")
+
+
+
+
+
+
+
+
+
+
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/generator_stage1_epoch35.pth"
+CHECKPOINT_PATH = "weights/generator_stage1_epoch35_clear.pth"
 # CHECKPOINT_PATH = "/content/rive/MyDrive/sketch_project/checkpoints/generator_stage1_epoch25.pth"
 
-IMG_PATH = "test_img/9.jpg"
+# IMG_PATH = "test_img/9.jpg"
+IMG_PATH = img_path
+
 IMG_SIZE = 512
 SAVE_PATH = "generated_output.png"
 
@@ -99,8 +135,8 @@ generator.eval()
 
 # Preprocess
 ss=Image.open(IMG_PATH)
-img = Image.open(IMG_PATH).convert("L")
-# img = Image.open(IMG_PATH)
+# img = Image.open(IMG_PATH).convert("L")
+img = Image.open(IMG_PATH)
 
 img = resize_with_padding(img, IMG_SIZE)
 
