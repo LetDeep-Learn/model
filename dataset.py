@@ -96,13 +96,15 @@ class PairedDataset(Dataset):
         }
 
 
-def resize_with_padding(img, target_size=1024):
+def resize_with_padding(img, target_size=1024, pad_color=None):
     """
     Resize an image while preserving aspect ratio and pad to target_size.
     Always pads with white (255) instead of black.
     """
+    if pad_color is None:
+        pad_color = 255 if img.mode == "L" else (255, 255, 255)
     # Force white padding: grayscale = 255, RGB = (255,255,255)
-    pad_color = 255 if img.mode == "L" else (255, 255, 255)
+    # pad_color = 255 if img.mode == "L" else (255, 255, 255)
 
     ratio = float(target_size) / max(img.size)
     new_size = tuple([int(x * ratio) for x in img.size])
