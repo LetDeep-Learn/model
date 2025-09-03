@@ -96,12 +96,13 @@ class PairedDataset(Dataset):
         }
 
 
-def resize_with_padding(img, target_size=1024, pad_color=None):
+def resize_with_padding(img, target_size=1024):
     """
     Resize an image while preserving aspect ratio and pad to target_size.
+    Always pads with white (255) instead of black.
     """
-    if pad_color is None:
-        pad_color = 0 if img.mode == "L" else (0, 0, 0)
+    # Force white padding: grayscale = 255, RGB = (255,255,255)
+    pad_color = 255 if img.mode == "L" else (255, 255, 255)
 
     ratio = float(target_size) / max(img.size)
     new_size = tuple([int(x * ratio) for x in img.size])
@@ -117,6 +118,29 @@ def resize_with_padding(img, target_size=1024, pad_color=None):
     )
     img = ImageOps.expand(img, padding, fill=pad_color)
     return img
+
+
+# def resize_with_padding(img, target_size=1024, pad_color=None):
+#     """
+#     Resize an image while preserving aspect ratio and pad to target_size.
+#     """
+#     if pad_color is None:
+#         pad_color = 0 if img.mode == "L" else (0, 0, 0)
+
+#     ratio = float(target_size) / max(img.size)
+#     new_size = tuple([int(x * ratio) for x in img.size])
+#     img = img.resize(new_size, Image.BICUBIC)
+
+#     delta_w = target_size - new_size[0]
+#     delta_h = target_size - new_size[1]
+#     padding = (
+#         delta_w // 2,
+#         delta_h // 2,
+#         delta_w - (delta_w // 2),
+#         delta_h - (delta_h // 2),
+#     )
+#     img = ImageOps.expand(img, padding, fill=pad_color)
+#     return img
 
 
 def restore_original_aspect(output_img, new_size, padding, orig_size):
