@@ -2,7 +2,7 @@ import os
 import torch
 from torchvision import transforms
 from PIL import Image
-from dataset import resize_with_padding
+from working_scripts.dataset import resize_with_padding
 from model import UNetGenerator
 
 # ===== CONFIG =====

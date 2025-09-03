@@ -23,8 +23,8 @@ from config import (
     LR, BETAS, LAMBDA_L1, LAMBDA_PERC, SAVE_EVERY, RESUME_PATH, SAVE_LATEST,
     USE_AMP, SEED
 )
-from dataset import PairedDataset
-from model import UNetGenerator, PatchDiscriminator, PerceptualLoss
+from working_scripts.dataset import PairedDataset
+from helpful_python_scripts.model import UNetGenerator, PatchDiscriminator, PerceptualLoss
 
 # ----------------------------
 # Safety / reproducibility
@@ -152,10 +152,10 @@ start_epoch = maybe_resume(resume_source, G, D, optG, optD, scaler)
 # ----------------------------
 # Training config
 # ----------------------------
-EDGE_WEIGHT = 10.0        # strong push on edges
+EDGE_WEIGHT = 5.0        # strong push on edges
 TV_WEIGHT   = 0.1         # light smoothing
-REAL_LABEL  = 0.9         # label smoothing for real
-FAKE_LABEL  = 0.0
+REAL_LABEL  = 0.85         # label smoothing for real
+FAKE_LABEL  = 0.04
 
 def add_instance_noise(tensor, epoch, total_epochs, base_sigma=0.05):
     """Gaussian noise to D inputs, decays to 0 by end of training."""

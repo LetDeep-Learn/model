@@ -1,9 +1,12 @@
+
+## `model.py`
+
 import torch
 import torch.nn as nn
 from torchvision.models import vgg16
 
 # ----------------------------
-# UNet Block
+# UNet Generator (pix2pix-style)
 # ----------------------------
 class UNetBlock(nn.Module):
     def __init__(self, in_ch, out_ch, down=True, dropout=False):
@@ -28,10 +31,6 @@ class UNetBlock(nn.Module):
             x = self.do(x)
         return x
 
-
-# ----------------------------
-# UNet Generator (pix2pix-style)
-# ----------------------------
 class UNetGenerator(nn.Module):
     def __init__(self, in_ch=3, out_ch=1):
         super().__init__()
@@ -58,15 +57,8 @@ class UNetGenerator(nn.Module):
         )
 
     def forward(self, x):
-        d1 = self.d1(x)
-        d2 = self.d2(d1)
-        d3 = self.d3(d2)
-        d4 = self.d4(d3)
-        d5 = self.d5(d4)
-        d6 = self.d6(d5)
-        d7 = self.d7(d6)
-        d8 = self.d8(d7)
-
+        d1 = self.d1(x); d2 = self.d2(d1); d3 = self.d3(d2); d4 = self.d4(d3)
+        d5 = self.d5(d4); d6 = self.d6(d5); d7 = self.d7(d6); d8 = self.d8(d7)
         u1 = self.u1(d8)
         u2 = self.u2(torch.cat([u1, d7], dim=1))
         u3 = self.u3(torch.cat([u2, d6], dim=1))
@@ -77,41 +69,74 @@ class UNetGenerator(nn.Module):
         out = self.final(torch.cat([u7, d1], dim=1))
         return out
 
-
 # ----------------------------
 # PatchGAN Discriminator (conditional)
+# D takes concatenated (photo, sketch) as input -> logits map
 # ----------------------------
 class PatchDiscriminator(nn.Module):
-    def __init__(self, in_ch=3 + 1):
+    def __init__(self, in_ch=3+1):
         super().__init__()
         ch = 64
         self.model = nn.Sequential(
             nn.Conv2d(in_ch, ch, 4, 2, 1),
             nn.LeakyReLU(0.2, inplace=False),
 
-            nn.Conv2d(ch, ch * 2, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ch * 2),
+            nn.Conv2d(ch, ch*2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ch*2),
             nn.LeakyReLU(0.2, inplace=False),
 
-            nn.Conv2d(ch * 2, ch * 4, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(ch * 4),
+            nn.Conv2d(ch*2, ch*4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ch*4),
             nn.LeakyReLU(0.2, inplace=False),
 
-            nn.Conv2d(ch * 4, ch * 8, 4, 1, 1, bias=False),
-            nn.BatchNorm2d(ch * 8),
+            nn.Conv2d(ch*4, ch*8, 4, 1, 1, bias=False),
+            nn.BatchNorm2d(ch*8),
             nn.LeakyReLU(0.2, inplace=False),
 
-            nn.Conv2d(ch * 8, 1, 4, 1, 1)
+            nn.Conv2d(ch*8, 1, 4, 1, 1)  # logits (no sigmoid)
         )
 
     def forward(self, photo, sketch):
         x = torch.cat([photo, sketch], dim=1)
         return self.model(x)
 
+# ----------------------------
+# Perceptual Loss using VGG16 features
+# ----------------------------
+# class PerceptualLoss(nn.Module):
+#     def __init__(self, layer_ids=(3, 8, 15), weight=1.0):
+#         super().__init__()
+#         vgg = vgg16(weights="IMAGENET1K_V1").features
+#         self.slices = nn.ModuleList([vgg[i] for i in layer_ids])
+#         for m in self.slices:
+#             for p in m.parameters():
+#                 p.requires_grad = False
+#         self.weight = weight
+#         self.register_buffer("mean", torch.tensor([0.5, 0.5, 0.5]).view(1,3,1,1))
+#         self.register_buffer("std", torch.tensor([0.5, 0.5, 0.5]).view(1,3,1,1))
 
-# ----------------------------
-# Perceptual + Pixel Loss
-# ----------------------------
+#     @torch.no_grad()
+#     def _to_vgg_space(self, x):
+#         # expects input in [-1,1], convert to [0,1] then to ImageNet-ish scale if needed
+#         return (x * self.std) + self.mean
+
+#     def forward(self, x, y):
+#         # x: [N,1,H,W] or [N,3,H,W] in [-1,1]
+#         # y: same
+#         if x.size(1) == 1:
+#             x = x.repeat(1, 3, 1, 1)
+#         if y.size(1) == 1:
+#             y = y.repeat(1, 3, 1, 1)
+#         x = self._to_vgg_space(x)
+#         y = self._to_vgg_space(y)
+#         loss = 0.0
+#         for layer in self.slices:
+#             x = layer(x)
+#             y = layer(y)
+#             loss = loss + nn.functional.l1_loss(x, y)
+#         return loss * self.weight
+
+
 class PerceptualLoss(nn.Module):
     def __init__(self, layer_ids=(3, 8, 15, 22, 29), layer_weights=None, perceptual_weight=0.2, pixel_weight=1.0):
         super().__init__()
@@ -121,6 +146,7 @@ class PerceptualLoss(nn.Module):
             for p in m.parameters():
                 p.requires_grad = False
 
+        # default layer weights if none provided
         if layer_weights is None:
             layer_weights = [1.0] * len(layer_ids)
         self.layer_weights = layer_weights
@@ -128,15 +154,18 @@ class PerceptualLoss(nn.Module):
         self.perceptual_weight = perceptual_weight
         self.pixel_weight = pixel_weight
 
+        # normalization buffers
         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
         self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
 
     @torch.no_grad()
     def _to_vgg_space(self, x):
+        # expects input in [-1,1] → [0,1] → normalize to ImageNet stats
         x = (x + 1) / 2  # [-1,1] to [0,1]
         return (x - self.mean) / self.std
 
     def forward(self, x, y):
+        # ensure 3 channels
         if x.size(1) == 1:
             x = x.repeat(1, 3, 1, 1)
         if y.size(1) == 1:
@@ -145,12 +174,14 @@ class PerceptualLoss(nn.Module):
         x = self._to_vgg_space(x)
         y = self._to_vgg_space(y)
 
+        # perceptual loss
         perceptual_loss = 0.0
         for w, layer in zip(self.layer_weights, self.slices):
             x = layer(x)
             y = layer(y)
             perceptual_loss += w * nn.functional.l1_loss(x, y)
 
+        # pixel L1 loss
         pixel_loss = nn.functional.l1_loss(x, y)
 
         return (self.perceptual_weight * perceptual_loss) + (self.pixel_weight * pixel_loss)

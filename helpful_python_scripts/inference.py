@@ -117,7 +117,9 @@ else:
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/generator_stage1_epoch35_clear.pth"
+# CHECKPOINT_PATH = "weights/generator_stage1_epoch35_clear.pth"
+CHECKPOINT_PATH = "new_weights/final_epoch30.pth"
+
 # CHECKPOINT_PATH = "/content/rive/MyDrive/sketch_project/checkpoints/generator_stage1_epoch25.pth"
 
 # IMG_PATH = "test_img/9.jpg"
@@ -135,8 +137,8 @@ generator.eval()
 
 # Preprocess
 ss=Image.open(IMG_PATH)
-# img = Image.open(IMG_PATH).convert("L")
-img = Image.open(IMG_PATH)
+img = Image.open(IMG_PATH).convert("L")
+# img = Image.open(IMG_PATH)
 
 img = resize_with_padding(img, IMG_SIZE)
 
@@ -167,7 +169,7 @@ print(f"Generated image saved at {SAVE_PATH}")
 
 plt.figure(figsize=(8,4))
 plt.subplot(1,2,1)
-plt.title("Input Sketch")
+plt.title("Input Image")
 plt.imshow(ss)
 plt.axis("off")
 
