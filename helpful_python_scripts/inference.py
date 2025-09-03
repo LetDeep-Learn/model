@@ -79,8 +79,8 @@ import torch
 from torchvision import transforms
 from PIL import Image,ImageEnhance
 import matplotlib.pyplot as plt
-from dataset import resize_with_padding
-from model import UNetGenerator
+from working_scripts.dataset import resize_with_padding
+from helpful_python_scripts.model import UNetGenerator
 
 
 

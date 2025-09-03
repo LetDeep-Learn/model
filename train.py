@@ -13,8 +13,8 @@ from config import (
     LR, BETAS, LAMBDA_L1, LAMBDA_PERC, SAVE_EVERY, RESUME_PATH, SAVE_LATEST,
     USE_AMP, SEED
 )
-from dataset import PairedDataset ,resize_with_padding
-from model import UNetGenerator, PatchDiscriminator, PerceptualLoss
+from working_scripts.dataset import PairedDataset ,resize_with_padding
+from helpful_python_scripts.model import UNetGenerator, PatchDiscriminator, PerceptualLoss
 
 # Extra safety to locate autograd issues
 torch.autograd.set_detect_anomaly(True)

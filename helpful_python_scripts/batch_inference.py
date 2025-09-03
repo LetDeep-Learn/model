@@ -3,7 +3,7 @@ import torch
 from torchvision import transforms
 from PIL import Image
 from working_scripts.dataset import resize_with_padding
-from model import UNetGenerator
+from helpful_python_scripts.model import UNetGenerator
 
 # ===== CONFIG =====
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

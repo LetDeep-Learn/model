@@ -151,4 +151,5 @@ def remove_padding_and_resize(img, original_size):
     right, bottom = left + new_w, top + new_h
 
     img_cropped = img.crop((left, top, right, bottom))
-    img_restored = img_cropped.resize((orig_w_
+    img_restored = img_cropped.resize((orig_w, orig_h), Image.BICUBIC)
+    return img_restored

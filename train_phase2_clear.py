@@ -12,8 +12,8 @@ from config_clear import (
     IMAGE_SIZE, BATCH_SIZE, VAL_SPLIT, EPOCHS_PHASE2,
     LR, BETAS, LAMBDA_L1, LAMBDA_PERC, SAVE_EVERY, USE_AMP, SEED
 )
-from dataset import SketchDataset
-from model import UNetGenerator, PerceptualLoss
+from working_scripts.dataset import SketchDataset
+from helpful_python_scripts.model import UNetGenerator, PerceptualLoss
 
 torch.autograd.set_detect_anomaly(True)
 
