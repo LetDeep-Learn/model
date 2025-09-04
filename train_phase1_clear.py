@@ -13,7 +13,7 @@ from config_clear import (
     USE_AMP, SEED
 )
 from dataset import PairedDataset ,resize_with_padding
-from helpful_python_scripts.model import UNetGenerator, PatchDiscriminator, PerceptualLoss
+from model import UNetGenerator, PatchDiscriminator, PerceptualLoss
 
 # Extra safety to locate autograd issues
 torch.autograd.set_detect_anomaly(True)
