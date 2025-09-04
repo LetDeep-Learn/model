@@ -59,9 +59,10 @@ class EdgeLoss(nn.Module):
         self.sobel_y.requires_grad = False
 
     def forward(self, pred, target):
-        if pred.size(1) == 3:
-            pred = pred.mean(1, keepdim=True)
-            target = target.mean(1, keepdim=True)
+        if pred.shape[1] == 3:  # RGB → grayscale
+            pred = pred.mean(dim=1, keepdim=True)
+        if target.shape[1] == 3:  # ensure target is grayscale
+            target = target.mean(dim=1, keepdim=True)
         Gx_pred = nn.functional.conv2d(pred, self.sobel_x.to(pred.device), padding=1)
         Gy_pred = nn.functional.conv2d(pred, self.sobel_y.to(pred.device), padding=1)
         Gx_target = nn.functional.conv2d(target, self.sobel_x.to(pred.device), padding=1)
