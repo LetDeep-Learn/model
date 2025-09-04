@@ -132,3 +132,28 @@ def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False)
     mask = np.array(mask)
 
     return img_padded, mask
+
+
+def remove_padding_and_resize(img, original_size):
+    """
+    Crop out padding from a square image and resize back to original size.
+    Args:
+        img (PIL.Image): Model output (square, e.g. 1024x1024).
+        original_size (tuple): (width, height) of the original input.
+    Returns:
+        PIL.Image: Restored image with original aspect ratio.
+    """
+    target_size = img.size[0]  # square side
+    orig_w, orig_h = original_size
+
+    ratio = float(target_size) / max(orig_w, orig_h)
+    new_w, new_h = int(orig_w * ratio), int(orig_h * ratio)
+
+    delta_w = target_size - new_w
+    delta_h = target_size - new_h
+    left, top = delta_w // 2, delta_h // 2
+    right, bottom = left + new_w, top + new_h
+
+    img_cropped = img.crop((left, top, right, bottom))
+    img_restored = img_cropped.resize((orig_w, orig_h), Image.BICUBIC)
+    return img_restored
