@@ -2,8 +2,8 @@ import os
 import shutil
 
 # Define source and destination directories
-source_root = r"C:\Users\Omkar.Sonawale\Pictures\DATASET's\sketch"
-destination_folder = r"C:\Users\Omkar.Sonawale\Desktop\model\unpaired_sketch"
+source_root = r"C:\Users\Omkar.Sonawale\Desktop\model\dataset2\sketches"
+destination_folder = r"C:\Users\Omkar.Sonawale\Desktop\model\dataset2\sk"
 
 # Create destination folder if it doesn't exist
 os.makedirs(destination_folder, exist_ok=True)
@@ -24,8 +24,9 @@ for subdir, _, files in os.walk(source_root):
                 print(f"Source file not found: {src_path}")
                 continue
 
-            ext = os.path.splitext(file)[1]
-            new_name = f"sketch_{counter:05d}{ext}"
+            # ext = os.path.splitext(file)[1]
+            ext=".png"
+            new_name = f"syn_{counter:05d}{ext}"
             dst_path = os.path.join(destination_folder, new_name)
 
             try:
