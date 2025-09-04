@@ -54,12 +54,12 @@ SKETCH_ROOT = "dataset2/sketches" # sketches-only dataset for phase 2
 # ----------------------------
 # Checkpoints
 # ----------------------------
-DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints"           # Phase 1 checkpoints
+DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints_clear"           # Phase 1 checkpoints
 
 # DRIVE_PATH = "/content/drive/MyDrive/sketch_project/checkpoints_clear"           # Phase 1 checkpoints
 PHASE2_CHECKPOINT_DIR = "/content/drive/MyDrive/sketch_project/checkpoints_phase2_1024"  # Phase 2
 os.makedirs(DRIVE_PATH, exist_ok=True)
-os.makedirs(PHASE2_CHECKPOINT_DIR, exist_ok=True)
+# os.makedirs(PHASE2_CHECKPOINT_DIR, exist_ok=True)
 
 # Resume Phase 2 from Phase 1 generator-only checkpoint
 PHASE2_RESUME_PATH = os.path.join(DRIVE_PATH, "generator_stage1_epoch30.pth") # DECIDE AT RUNTIME
@@ -76,7 +76,7 @@ VAL_SPLIT = 0.05
 EPOCHS=50
 EPOCHS_PHASE2 = 50  # integer! number of epochs
 
-LR = 1e-5
+LR = 1e-4
 BETAS = (0.5, 0.999)
 LAMBDA_L1 = 100.0
 LAMBDA_PERC = 1.0
