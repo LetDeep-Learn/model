@@ -153,7 +153,7 @@ start_epoch = maybe_resume(resume_source, G, D, optG, optD, scaler)
 # ----------------------------
 # Training config
 # ----------------------------
-EDGE_WEIGHT = 5.0        # strong push on edges
+EDGE_WEIGHT = 6.0        # strong push on edges
 TV_WEIGHT   = 0.1         # light smoothing
 REAL_LABEL  = 0.85         # label smoothing for real
 FAKE_LABEL  = 0.04
