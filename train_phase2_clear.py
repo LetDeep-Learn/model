@@ -176,7 +176,7 @@ for epoch in range(start_epoch, EPOCHS_PHASE2):
         save_ckpt(epoch+1, G, optG, scaler, full_ckpt_path)
 
         # Generator-only checkpoint for inference
-        g_only_path = os.path.join(PHASE2_CHECKPOINT_DIR, f"generator_epoch{epoch+1}.pth")
+        g_only_path = os.path.join(PHASE2_CHECKPOINT_DIR, f"datatset_generator_epoch{epoch+1}.pth")
         torch.save(G.state_dict(), g_only_path)
 
         print(f"Saved Phase 2 full and generator-only checkpoints for epoch {epoch+1}")
