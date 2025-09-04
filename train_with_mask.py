@@ -235,8 +235,145 @@ def masked_edge(pred, target, mask):
     return criterion_edge(pred_masked, target_masked)
 
 
+# # ----------------------------
+# # Training loop
+# # ----------------------------
+# for epoch in range(start_epoch, EPOCHS):
+#     G.train(); D.train()
+#     running_g, running_d = 0.0, 0.0
+
+#     for batch in train_loader:
+#         photo  = batch["photo"].to(device, non_blocking=True)   # [B,3,H,W]
+#         sketch = batch["sketch"].to(device, non_blocking=True)  # [B,1,H,W] or [B,3,H,W] depending on dataset
+#         mask   = batch.get("mask", None)
+#         if mask is None:
+#             # fallback: if dataset didn't provide mask, assume all valid
+#             mask = torch.ones((photo.size(0), 1, IMAGE_SIZE, IMAGE_SIZE), device=device)
+#         else:
+#             mask = mask.to(device, non_blocking=True)           # [B,1,H,W]
+
+#         # ------------------
+#         # Train D
+#         # ------------------
+#         optD.zero_grad(set_to_none=True)
+#         with torch.amp.autocast("cuda", enabled=USE_AMP):
+#             fake = G(photo).detach()  # [B, Cf, H, W]
+
+#             # prepare fake/sketch for Discriminator: D expects same channel shape for 'sketch' input as during training.
+#             # If sketch is 1-channel and fake is 3-ch, convert fake to 1-ch for D; if sketch is 3-ch, ensure fake is 3-ch.
+#             if sketch.size(1) == 1 and fake.size(1) == 3:
+#                 fake_for_d = fake.mean(dim=1, keepdim=True)
+#             elif sketch.size(1) == 3 and fake.size(1) == 1:
+#                 fake_for_d = fake.repeat(1,3,1,1)
+#             else:
+#                 fake_for_d = fake
+
+#             # Instance noise to stabilize D (applied on the sketch/fake branch only as before)
+#             sketch_noisy = add_instance_noise(sketch, epoch, EPOCHS)
+#             fake_noisy   = add_instance_noise(fake_for_d, epoch, EPOCHS)
+
+#             logits_real = D(photo, sketch_noisy)
+#             logits_fake = D(photo, fake_noisy)
+
+#             labels_real = torch.full_like(logits_real, REAL_LABEL)
+#             labels_fake = torch.full_like(logits_fake, FAKE_LABEL)
+
+#             loss_d_real = criterion_gan(logits_real, labels_real)
+#             loss_d_fake = criterion_gan(logits_fake, labels_fake)
+#             loss_d = 0.5 * (loss_d_real + loss_d_fake)
+
+#         scaler.scale(loss_d).backward()
+#         scaler.step(optD)
+
+#         # ------------------
+#         # Train G
+#         # ------------------
+#         optG.zero_grad(set_to_none=True)
+#         with torch.amp.autocast("cuda", enabled=USE_AMP):
+#             fake = G(photo)  # fresh fake for generator update
+
+#             # prepare fake_for_discriminator similarly
+#             if sketch.size(1) == 1 and fake.size(1) == 3:
+#                 fake_for_d = fake.mean(dim=1, keepdim=True)
+#             elif sketch.size(1) == 3 and fake.size(1) == 1:
+#                 fake_for_d = fake.repeat(1,3,1,1)
+#             else:
+#                 fake_for_d = fake
+
+#             logits_fake_for_g = D(photo, fake_for_d)
+#             adv_g = criterion_gan(logits_fake_for_g, torch.ones_like(logits_fake_for_g) * REAL_LABEL)
+
+#             # --- Masked losses ---
+#             # L1: compute in grayscale domain and mask padding
+#             l1 = masked_l1(fake, sketch, mask) * LAMBDA_L1
+
+#             # Perceptual: operate on 3-channel masked inputs
+#             perc = masked_perceptual(fake, sketch, mask) * LAMBDA_PERC
+
+#             # Edge: mask applied inside helper
+#             edge = masked_edge(fake, sketch, mask) * EDGE_WEIGHT
+
+#             # TV on raw fake (no mask) — small smoothing
+#             tv   = criterion_tv(fake) * TV_WEIGHT
+
+#             loss_g = adv_g + l1 + perc + edge + tv
+
+#         scaler.scale(loss_g).backward()
+#         # gradient clipping to keep G sane
+#         scaler.unscale_(optG)
+#         nn.utils.clip_grad_norm_(G.parameters(), max_norm=1.0)
+#         scaler.step(optG)
+#         scaler.update()
+
+#         running_d += float(loss_d.detach().item())
+#         running_g += float(loss_g.detach().item())
+
+#     avg_d = running_d / max(1, len(train_loader))
+#     avg_g = running_g / max(1, len(train_loader))
+#     print(f"Epoch {epoch+1}/{EPOCHS} | D: {avg_d:.4f} | G: {avg_g:.4f} | LR(G): {optG.param_groups[0]['lr']:.6f}")
+
+#     # ------------------
+#     # Validation (masked L1 only)
+#     # ------------------
+#     G.eval()
+#     with torch.no_grad():
+#         val_l1 = 0.0
+#         for batch in val_loader:
+#             photo  = batch["photo"].to(device, non_blocking=True)
+#             sketch = batch["sketch"].to(device, non_blocking=True)
+#             mask   = batch.get("mask", None)
+#             if mask is None:
+#                 mask = torch.ones((photo.size(0), 1, IMAGE_SIZE, IMAGE_SIZE), device=device)
+#             else:
+#                 mask = mask.to(device, non_blocking=True)
+
+#             fake = G(photo)
+#             val_l1 += masked_l1(fake, sketch, mask).item()
+#         val_l1 /= max(1, len(val_loader))
+#     print(f"  Validation L1: {val_l1:.4f}")
+
+#     # Step schedulers AFTER validation per epoch
+#     G_scheduler.step()
+#     D_scheduler.step()
+
+#     # ------------------
+#     # Checkpointing
+#     # ------------------
+#     if ((epoch + 1) % SAVE_EVERY) == 0 or (epoch + 1) == EPOCHS:
+#         ep_path = os.path.join(DRIVE_PATH, f"epoch{epoch+1}.pth")
+#         save_ckpt(epoch + 1, G, D, optG, optD, scaler, ep_path)
+#         if SAVE_LATEST:
+#             latest = os.path.join(DRIVE_PATH, "latest.pth")
+#             save_ckpt(epoch + 1, G, D, optG, optD, scaler, latest)
+#         # generator-only snapshot for inference
+#         g_only = os.path.join(DRIVE_PATH, f"mask_epoch{epoch+1}.pth")
+#         torch.save(G.state_dict(), g_only)
+#         print(f"Saved checkpoints to {DRIVE_PATH}")
+
+# print("Training complete.")
+
 # ----------------------------
-# Training loop
+# Training loop (only prints changed)
 # ----------------------------
 for epoch in range(start_epoch, EPOCHS):
     G.train(); D.train()
@@ -330,7 +467,20 @@ for epoch in range(start_epoch, EPOCHS):
 
     avg_d = running_d / max(1, len(train_loader))
     avg_g = running_g / max(1, len(train_loader))
-    print(f"Epoch {epoch+1}/{EPOCHS} | D: {avg_d:.4f} | G: {avg_g:.4f} | LR(G): {optG.param_groups[0]['lr']:.6f}")
+
+    # ------------------ pretty epoch summary print ------------------
+    # small dataset info (best-effort) and decorative box
+    dataset_count = len(train_loader.dataset) if hasattr(train_loader, "dataset") else "N/A"
+    print("\n╔════════════════════════════════════════════════════════════════════════════╗")
+    print(f"║  Epoch {epoch+1:3d}/{EPOCHS:3d}  ·  Samples: {dataset_count}  ·  Batch: {BATCH_SIZE:2d} ", end="")
+    print(f"· 🔁 LR(G): {optG.param_groups[0]['lr']:.6f} ║")
+    print("╟────────────────────────────────────────────────────────────────────────────╢")
+    print(f"║ 🛡️ Discriminator loss (D) : {avg_d:7.4f}     |   ⚙️  Generator loss (G) : {avg_g:7.4f}   ║")
+    # tiny health-check nudges
+    d_health = "OK" if 0.35 <= avg_d <= 0.75 else ("LOW" if avg_d < 0.35 else "HIGH")
+    g_note = "improving" if avg_g < 5.0 else "training"
+    print(f"║ ⚑ Status: D={d_health}  ·  G={g_note}  ·  (lower L1/val is better)              ║")
+    print("╚════════════════════════════════════════════════════════════════════════════╝")
 
     # ------------------
     # Validation (masked L1 only)
@@ -350,7 +500,10 @@ for epoch in range(start_epoch, EPOCHS):
             fake = G(photo)
             val_l1 += masked_l1(fake, sketch, mask).item()
         val_l1 /= max(1, len(val_loader))
-    print(f"  Validation L1: {val_l1:.4f}")
+
+    # decorated validation line
+    val_flag = "✅" if val_l1 < 0.15 else ("⚠️" if val_l1 < 0.30 else "❗")
+    print(f"  {val_flag}  Validation L1 (masked): {val_l1:.4f}   ({'good' if val_l1 < 0.15 else 'needs work'})")
 
     # Step schedulers AFTER validation per epoch
     G_scheduler.step()
@@ -368,6 +521,6 @@ for epoch in range(start_epoch, EPOCHS):
         # generator-only snapshot for inference
         g_only = os.path.join(DRIVE_PATH, f"mask_epoch{epoch+1}.pth")
         torch.save(G.state_dict(), g_only)
-        print(f"Saved checkpoints to {DRIVE_PATH}")
+        print(f"💾  Saved checkpoints to {DRIVE_PATH}  (epoch {epoch+1})")
 
-print("Training complete.")
+print("🏁  Training complete. Your model survived another run.")
