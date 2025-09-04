@@ -48,7 +48,9 @@ import os
 # ----------------------------
 # Dataset paths
 # ----------------------------
-DATA_ROOT = "dataset"            # original paired dataset (photos + sketches)
+DATA_ROOT = "dataset"  
+# DATA_ROOT = "dataset2"            # original paired dataset (photos + sketches)
+          # original paired dataset (photos + sketches)
 SKETCH_ROOT = "dataset_unpaired/sketches" # sketches-only dataset for phase 2
 
 # ----------------------------

@@ -23,8 +23,8 @@ from config import (
     LR, BETAS, LAMBDA_L1, LAMBDA_PERC, SAVE_EVERY, RESUME_PATH, SAVE_LATEST,
     USE_AMP, SEED
 )
-from working_scripts.dataset import PairedDataset
-from helpful_python_scripts.model import UNetGenerator, PatchDiscriminator, PerceptualLoss
+from dataset import PairedDataset
+from model import UNetGenerator, PatchDiscriminator, PerceptualLoss
 
 # ----------------------------
 # Safety / reproducibility
