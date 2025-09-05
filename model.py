@@ -112,8 +112,19 @@ class PatchDiscriminator(nn.Module):
 # ----------------------------
 # Perceptual + Pixel Loss
 # ----------------------------
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torchvision.models import vgg16
+
 class PerceptualLoss(nn.Module):
-    def __init__(self, layer_ids=(3, 8, 15, 22, 29), layer_weights=None, perceptual_weight=0.2, pixel_weight=1.0):
+    def __init__(
+        self,
+        layer_ids=(3, 8, 15),  # Early layers for edge and texture
+        layer_weights=None,   # Dict: {layer_id: weight}
+        perceptual_weight=0.3,
+        pixel_weight=0.8
+    ):
         super().__init__()
         vgg = vgg16(weights="IMAGENET1K_V1").features
         self.slices = nn.ModuleList([vgg[i] for i in layer_ids])
@@ -122,7 +133,7 @@ class PerceptualLoss(nn.Module):
                 p.requires_grad = False
 
         if layer_weights is None:
-            layer_weights = [1.0] * len(layer_ids)
+            layer_weights = {i: 1.0 for i in layer_ids}
         self.layer_weights = layer_weights
 
         self.perceptual_weight = perceptual_weight
@@ -146,11 +157,54 @@ class PerceptualLoss(nn.Module):
         y = self._to_vgg_space(y)
 
         perceptual_loss = 0.0
-        for w, layer in zip(self.layer_weights, self.slices):
+        for i, layer in zip(self.layer_weights.keys(), self.slices):
             x = layer(x)
             y = layer(y)
-            perceptual_loss += w * nn.functional.l1_loss(x, y)
+            perceptual_loss += self.layer_weights[i] * F.l1_loss(x, y)
 
-        pixel_loss = nn.functional.l1_loss(x, y)
+        pixel_loss = F.l1_loss(x, y)
 
         return (self.perceptual_weight * perceptual_loss) + (self.pixel_weight * pixel_loss)
+
+# class PerceptualLoss(nn.Module):
+#     def __init__(self, layer_ids=(3, 8, 15, 22, 29), layer_weights=None, perceptual_weight=0.2, pixel_weight=1.0):
+#         super().__init__()
+#         vgg = vgg16(weights="IMAGENET1K_V1").features
+#         self.slices = nn.ModuleList([vgg[i] for i in layer_ids])
+#         for m in self.slices:
+#             for p in m.parameters():
+#                 p.requires_grad = False
+
+#         if layer_weights is None:
+#             layer_weights = [1.0] * len(layer_ids)
+#         self.layer_weights = layer_weights
+
+#         self.perceptual_weight = perceptual_weight
+#         self.pixel_weight = pixel_weight
+
+#         self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1))
+#         self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1))
+
+#     @torch.no_grad()
+#     def _to_vgg_space(self, x):
+#         x = (x + 1) / 2  # [-1,1] to [0,1]
+#         return (x - self.mean) / self.std
+
+#     def forward(self, x, y):
+#         if x.size(1) == 1:
+#             x = x.repeat(1, 3, 1, 1)
+#         if y.size(1) == 1:
+#             y = y.repeat(1, 3, 1, 1)
+
+#         x = self._to_vgg_space(x)
+#         y = self._to_vgg_space(y)
+
+#         perceptual_loss = 0.0
+#         for w, layer in zip(self.layer_weights, self.slices):
+#             x = layer(x)
+#             y = layer(y)
+#             perceptual_loss += w * nn.functional.l1_loss(x, y)
+
+#         pixel_loss = nn.functional.l1_loss(x, y)
+
+#         return (self.perceptual_weight * perceptual_loss) + (self.pixel_weight * pixel_loss)
