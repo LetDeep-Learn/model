@@ -47,7 +47,7 @@ project_root/
 ## 🧠 Data Flow Diagram
 
 ### Training Flow
-```mermaid
+```
 flowchart LR
     A[Photo + Sketch Pair] --> B[Generator (U-Net)]
     B --> C[Fake Sketch]
@@ -59,7 +59,7 @@ flowchart LR
 ```
 
 ### Inference Flow
-```mermaid
+```
 flowchart LR
     X[Photo] --> G[Trained Generator (U-Net)]
     G --> Y[Generated Sketch]
