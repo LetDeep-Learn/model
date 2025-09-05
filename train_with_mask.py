@@ -184,55 +184,107 @@ def _ensure_same_channels(a, b):
         return a, b.repeat(1,3,1,1)
     return a, b
 
-def masked_l1(pred, target, mask):
+def masked_l1(pred, target, mask, eps=1e-8):
     """
-    pred, target: tensors. We'll compute L1 in grayscale domain for stability.
-    mask: [B,1,H,W] with 1 for real pixels, 0 for padding.
+    pred, target: [B,C,H,W] tensors.
+    mask: [B,1,H,W], float, 1=real pixels, 0=padding.
     """
-    # compute grayscale representations (1-channel)
-    if pred.size(1) == 3:
-        pred_gray = pred.mean(dim=1, keepdim=True)
-    else:
-        pred_gray = pred
-    if target.size(1) == 3:
-        target_gray = target.mean(dim=1, keepdim=True)
-    else:
-        target_gray = target
+    # ensure mask is float + correct device
+    mask = mask.to(dtype=pred.dtype, device=pred.device)
+
+    # grayscale conversion
+    pred_gray   = pred.mean(dim=1, keepdim=True) if pred.size(1) == 3 else pred
+    target_gray = target.mean(dim=1, keepdim=True) if target.size(1) == 3 else target
 
     diff = torch.abs(pred_gray - target_gray) * mask  # [B,1,H,W]
-    denom = mask.sum() + _eps
-    return diff.sum() / denom
+
+    # normalize per sample to avoid imbalance
+    denom = mask.sum(dim=[1,2,3]) + eps
+    loss_per_sample = diff.sum(dim=[1,2,3]) / denom
+    return loss_per_sample.mean()
 
 def masked_perceptual(pred, target, mask):
     """
-    PerceptualLoss usually expects 3-channel inputs.
-    We'll expand grayscale to 3 channels if necessary, and multiply by mask (per-channel mask).
+    Apply perceptual loss while ignoring padded pixels.
     """
-    # make 3-channel tensors
-    if pred.size(1) == 1:
-        pred_3 = pred.repeat(1,3,1,1)
-    else:
-        pred_3 = pred
-    if target.size(1) == 1:
-        target_3 = target.repeat(1,3,1,1)
-    else:
-        target_3 = target
+    mask = mask.to(dtype=pred.dtype, device=pred.device)
 
-    mask3 = mask.repeat(1,3,1,1)  # [B,3,H,W]
-    # apply mask to images so VGG features don't get polluted by padded areas
-    pred_masked = pred_3 * mask3
-    target_masked = target_3 * mask3
-    # note: criterion_perc should operate on image tensors; it's pre-existing
+    # ensure 3-channel
+    pred_3   = pred.repeat(1,3,1,1) if pred.size(1) == 1 else pred
+    target_3 = target.repeat(1,3,1,1) if target.size(1) == 1 else target
+    mask3 = mask.repeat(1,3,1,1)
+
+    # fill padding with neutral mean (0.5 = mid-gray in [0,1])
+    pred_masked   = pred_3 * mask3 + 0.5 * (1 - mask3)
+    target_masked = target_3 * mask3 + 0.5 * (1 - mask3)
+
     return criterion_perc(pred_masked, target_masked)
 
-def masked_edge(pred, target, mask):
+
+def masked_edge(pred, target, mask, eps=1e-8):
     """
-    EdgeLoss converts to grayscale internally; apply mask first.
+    Apply edge loss while ignoring padded pixels.
     """
-    # apply mask to all channels (if pred 3-ch, mask will broadcast)
-    pred_masked = pred * mask
+    mask = mask.to(dtype=pred.dtype, device=pred.device)
+
+    pred_masked   = pred * mask
     target_masked = target * mask
-    return criterion_edge(pred_masked, target_masked)
+
+    raw_loss = criterion_edge(pred_masked, target_masked)
+
+    # normalize by fraction of real pixels
+    valid_ratio = mask.mean()
+    return raw_loss / (valid_ratio + eps)
+
+# def masked_l1(pred, target, mask):
+#     """
+#     pred, target: tensors. We'll compute L1 in grayscale domain for stability.
+#     mask: [B,1,H,W] with 1 for real pixels, 0 for padding.
+#     """
+#     # compute grayscale representations (1-channel)
+#     if pred.size(1) == 3:
+#         pred_gray = pred.mean(dim=1, keepdim=True)
+#     else:
+#         pred_gray = pred
+#     if target.size(1) == 3:
+#         target_gray = target.mean(dim=1, keepdim=True)
+#     else:
+#         target_gray = target
+
+#     diff = torch.abs(pred_gray - target_gray) * mask  # [B,1,H,W]
+#     denom = mask.sum() + _eps
+#     return diff.sum() / denom
+
+# def masked_perceptual(pred, target, mask):
+#     """
+#     PerceptualLoss usually expects 3-channel inputs.
+#     We'll expand grayscale to 3 channels if necessary, and multiply by mask (per-channel mask).
+#     """
+#     # make 3-channel tensors
+#     if pred.size(1) == 1:
+#         pred_3 = pred.repeat(1,3,1,1)
+#     else:
+#         pred_3 = pred
+#     if target.size(1) == 1:
+#         target_3 = target.repeat(1,3,1,1)
+#     else:
+#         target_3 = target
+
+#     mask3 = mask.repeat(1,3,1,1)  # [B,3,H,W]
+#     # apply mask to images so VGG features don't get polluted by padded areas
+#     pred_masked = pred_3 * mask3
+#     target_masked = target_3 * mask3
+#     # note: criterion_perc should operate on image tensors; it's pre-existing
+#     return criterion_perc(pred_masked, target_masked)
+
+# def masked_edge(pred, target, mask):
+#     """
+#     EdgeLoss converts to grayscale internally; apply mask first.
+#     """
+#     # apply mask to all channels (if pred 3-ch, mask will broadcast)
+#     pred_masked = pred * mask
+#     target_masked = target * mask
+#     return criterion_edge(pred_masked, target_masked)
 
 
 # # ----------------------------

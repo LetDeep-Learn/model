@@ -68,15 +68,15 @@ PHASE2_RESUME_PATH = os.path.join(DRIVE_PATH, "generator_stage1_epoch30.pth")
 # Training hyperparameters
 # ----------------------------
 IMAGE_SIZE = 1024
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 VAL_SPLIT = 0.05
 
 # Phase 1 & Phase 2 can have different epoch counts
 # EPOCHS_PHASE1 = 100
-EPOCHS = 50
+EPOCHS = 30
 EPOCHS_PHASE2 = 50  # integer! number of epochs
 
-LR = 1e-4
+LR = 2e-4
 BETAS = (0.5, 0.999)
 LAMBDA_L1 = 100.0
 LAMBDA_PERC = 1.0

@@ -3,6 +3,8 @@ from PIL import Image, ImageOps
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+import random
+import numpy as np
 
 
 class SketchDataset(Dataset):
@@ -99,11 +101,11 @@ class PairedDataset(Dataset):
             "mask": mask_tensor
         }
 
-
-def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False):
+def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False, randomize_padding=False):
     """
-    Resize with padding to target_size, return optional binary mask.
-    Mask: 1 = real pixels, 0 = padding.
+    Resize image with aspect ratio preserved and pad to square target_size.
+    Optionally return a binary mask (1=real pixels, 0=padding).
+    If randomize_padding=True, distribute padding randomly instead of centering.
     """
     orig_w, orig_h = img.size
     ratio = float(target_size) / max(img.size)
@@ -112,12 +114,19 @@ def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False)
 
     delta_w = target_size - new_size[0]
     delta_h = target_size - new_size[1]
-    padding = (
-        delta_w // 2,
-        delta_h // 2,
-        delta_w - (delta_w // 2),
-        delta_h - (delta_h // 2),
-    )
+
+    if randomize_padding:
+        pad_left  = random.randint(0, delta_w)
+        pad_right = delta_w - pad_left
+        pad_top   = random.randint(0, delta_h)
+        pad_bottom= delta_h - pad_top
+    else:
+        pad_left  = delta_w // 2
+        pad_right = delta_w - pad_left
+        pad_top   = delta_h // 2
+        pad_bottom= delta_h - pad_top
+
+    padding = (pad_left, pad_top, pad_right, pad_bottom)
 
     # image with padding
     img_padded = ImageOps.expand(img_resized, padding, fill=pad_color)
@@ -125,13 +134,44 @@ def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False)
     if not return_mask:
         return img_padded
 
-    # mask (before padding = 1, padding = 0)
-    import numpy as np
+    # mask (1=real, 0=padding)
     mask = np.ones((new_size[1], new_size[0]), dtype="uint8")
     mask = ImageOps.expand(Image.fromarray(mask), padding, fill=0)
-    mask = np.array(mask)
+    mask = np.array(mask, dtype="uint8")
 
     return img_padded, mask
+# def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False):
+#     """
+#     Resize with padding to target_size, return optional binary mask.
+#     Mask: 1 = real pixels, 0 = padding.
+#     """
+#     orig_w, orig_h = img.size
+#     ratio = float(target_size) / max(img.size)
+#     new_size = tuple([int(x * ratio) for x in img.size])
+#     img_resized = img.resize(new_size, Image.BICUBIC)
+
+#     delta_w = target_size - new_size[0]
+#     delta_h = target_size - new_size[1]
+#     padding = (
+#         delta_w // 2,
+#         delta_h // 2,
+#         delta_w - (delta_w // 2),
+#         delta_h - (delta_h // 2),
+#     )
+
+#     # image with padding
+#     img_padded = ImageOps.expand(img_resized, padding, fill=pad_color)
+
+#     if not return_mask:
+#         return img_padded
+
+#     # mask (before padding = 1, padding = 0)
+#     import numpy as np
+#     mask = np.ones((new_size[1], new_size[0]), dtype="uint8")
+#     mask = ImageOps.expand(Image.fromarray(mask), padding, fill=0)
+#     mask = np.array(mask)
+
+#     return img_padded, mask
 
 
 def remove_padding_and_resize(img, original_size):
