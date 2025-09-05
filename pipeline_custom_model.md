@@ -106,7 +106,7 @@
 2. Three Checkpoints :- Epoch, Generator and latest.pth are saved after each specified Number.
 3. latest.pth overrided after each new checkpoint .
 4. Generator.pth is Ready to test the model .
-5. Download the latest generator.pth and run load it in inference script and its ready for testing.
+5. Download the latest generator.pth and load it in inference script and its ready for testing.
 
 ---
 
