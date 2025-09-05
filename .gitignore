@@ -1,5 +1,4 @@
 __pycache__/
-
 dataset_unpaired/
 e/
 new_weights/
@@ -12,3 +11,4 @@ test_jpg/
 test_out/
 weights/
 weights_output/
+working_scripts/
