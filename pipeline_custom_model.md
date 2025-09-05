@@ -100,8 +100,17 @@
 ```
 
 ---
+## 6. **Output Weigths**
 
-## 6. **Inference Flow**
+1. Output Weights are Saved on Drive after every Five Epoches. (We can change to any number)
+2. Three Checkpoints :- Epoch, Generator and latest.pth are saved after each specified Number.
+3. latest.pth overrided after each new checkpoint .
+4. Generator.pth is Ready to test the model .
+5. Download the latest generator.pth and run load it in inference script and its ready for testing.
+
+---
+
+## 7. **Inference Flow**
 
 1. Load trained **G** weights.
 2. Preprocess input photo (resize, normalize).
@@ -110,7 +119,7 @@
 
 ---
 
-## 7. **Minimal Inference Code**
+## 8. **Minimal Inference Code**
 
 ```python
 import torch
