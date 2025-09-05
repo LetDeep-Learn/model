@@ -49,7 +49,7 @@ import os
 # Dataset paths
 # ----------------------------
 # DATA_ROOT = "dataset"  
-DATA_ROOT = "dataset2"            # original paired dataset (photos + sketches)
+DATA_ROOT = "dataset"            # original paired dataset (photos + sketches)
           # original paired dataset (photos + sketches)
 SKETCH_ROOT = "dataset_unpaired/sketches" # sketches-only dataset for phase 2
 
@@ -68,7 +68,7 @@ PHASE2_RESUME_PATH = os.path.join(DRIVE_PATH, "generator_stage1_epoch30.pth")
 # Training hyperparameters
 # ----------------------------
 IMAGE_SIZE = 1024
-BATCH_SIZE = 4
+BATCH_SIZE = 8
 VAL_SPLIT = 0.05
 
 # Phase 1 & Phase 2 can have different epoch counts

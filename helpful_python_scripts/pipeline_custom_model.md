@@ -1,20 +1,16 @@
-Got it ✅ — let’s lock in a **clear pipeline summary** so you have the *big picture*: which approaches, which architectures, how data flows, training steps, and how inference works.
-
----
-
-# 📌 **Pipeline Summary — Photo → Pencil Sketch**
+# **Pipeline Summary — Photo → Pencil Sketch**
 
 ## 1. **Data Setup**
 
 * **Paired set**: \~900 (photo, sketch) pairs — cleaned & aligned.
-* **Unpaired set**: \~15k sketches (sketch-only).
+* **Unpaired set**: \~15k sketches (sketch-only). [ ] Optional
 * **Split**:
 
   * Train: \~800 pairs
-  * Val/Test: \~100 pairs
+  * Val/Test: \~100 pairs [ ] Optional
 * **Preprocessing**:
 
-  * Resize to 256×256 (or 512×512 if GPU allows).
+  * Resize to 1024x1024 [Model Input Size].
   * Normalize: `[0,1]` → `[-1,1]`.
   * Augmentation (on paired photos): flips, crops, color jitter, mild rotation.
 
@@ -25,9 +21,9 @@ Got it ✅ — let’s lock in a **clear pipeline summary** so you have the *big
 ### Generator (**G**)
 
 * **Type**: UNet (pix2pix-style) or ResNet encoder-decoder.
-* **Input**: RGB photo (3×256×256).
-* **Output**: grayscale sketch (1×256×256).
-* **Why UNet?** Preserves spatial details (edges) via skip connections.
+* **Input**: RGB photo (3×1024x1024) With Padding if needed.
+* **Output**: grayscale sketch (1×1024×1024) Removes Padding if added.
+* **Why UNet**: It Preserves spatial details (edges) via skip connections.
 
 ### Discriminators (**optional, for Stage 2**)
 
@@ -37,7 +33,7 @@ Got it ✅ — let’s lock in a **clear pipeline summary** so you have the *big
    * Checks if sketch matches the photo.
    * Based on PatchGAN (70×70).
 
-2. **Unconditional Discriminator (D\_u)**
+2. **Unconditional Discriminator (D\_u)** [] Optional
 
    * Input: sketch only.
    * Real sketches (from 15k) vs generated ones.
@@ -62,7 +58,7 @@ Got it ✅ — let’s lock in a **clear pipeline summary** so you have the *big
   * **+ Conditional Adversarial Loss** from D\_c.
   * **+ Unconditional Adversarial Loss** from D\_u.
   * **+ Feature Matching Loss** (from D features, stabilizes GAN).
-* ⚖️ Balance: Keep **L1/Perceptual dominant** to preserve fidelity; adversarial only for style realism.
+* Balance: Keep **L1/Perceptual dominant** to preserve fidelity; adversarial only for style realism.
 
 ---
 
@@ -164,12 +160,10 @@ cv2.imwrite("sketch.png", y_pred)
 
 ---
 
-## 🔑 Key Takeaways
+## Summery
 
 * **Start simple**: train UNet with `L1 + perceptual` on 900 pairs.
 * **Optional refinement**: add GAN (D\_c + D\_u) to leverage 15k unpaired sketches.
 * **Inference**: only generator is needed → very lightweight, fast photo→sketch.
 
 ---
-
-👉 Do you want me to **flesh out Stage 1 UNet training loop (PyTorch)** as the next step, so you can immediately train on your 900 pairs? Or would you prefer I sketch out the **adversarial extension** (Stage 2) first?
