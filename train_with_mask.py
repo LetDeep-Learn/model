@@ -133,7 +133,7 @@ criterion_l1  = nn.L1Loss(reduction="none")
 #     layer_weights={3: 1.0, 8: 0.75, 15: 0.5, 22: 0.25},
 #     perceptual_weight=0.3,
 #     pixel_weight=0.8
-# ).to(device)
+# ).to(device) 
 criterion_perc = PerceptualLoss(
     layer_ids=(3, 8, 15),
     layer_weights={3: 1.0, 8: 0.5, 15: 0.2},
