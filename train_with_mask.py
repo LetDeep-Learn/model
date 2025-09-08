@@ -531,13 +531,13 @@ for epoch in range(start_epoch, EPOCHS):
     dataset_count = len(train_loader.dataset) if hasattr(train_loader, "dataset") else "N/A"
     print("\n╔════════════════════════════════════════════════════════════════════════════╗")
     print(f"║  Epoch {epoch+1:3d}/{EPOCHS:3d}  ·  Samples: {dataset_count}  ·  Batch: {BATCH_SIZE:2d} ", end="")
-    print(f"· 🔁 LR(G): {optG.param_groups[0]['lr']:.6f}       ║")
+    print(f"· 🔁 LR(G): {optG.param_groups[0]['lr']:.6f}         ║")
     print("╟────────────────────────────────────────────────────────────────────────────╢")
-    print(f"║ 🛡️ Discriminator loss (D) : {avg_d:7.4f}   | ⚙️  Generator loss (G) : {avg_g:7.4f}   ║")
+    print(f"║ 🛡️ Discriminator loss (D) : {avg_d:7.4f}   | ⚙️  Generator loss (G) : {avg_g:7.4f} ║")
     # tiny health-check nudges
     d_health = "OK" if 0.35 <= avg_d <= 0.75 else ("LOW" if avg_d < 0.35 else "HIGH")
     g_note = "improving" if avg_g < 5.0 else "training"
-    print(f"║  ⚑ Status: D={d_health}   ·  G={g_note}  ·   (lower L1/val is better)              ║")
+    print(f"║  ⚑ Status: D={d_health}   ·  G={g_note}  ·   (lower L1/val is better)             ║")
     print("╚════════════════════════════════════════════════════════════════════════════╝")
 
     # ------------------
