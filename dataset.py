@@ -37,7 +37,7 @@ class SketchDataset(Dataset):
         path = self.files[idx]
         img = Image.open(path).convert("L")  # grayscale
 
-        img, mask = resize_with_padding(img, target_size=self.image_size, pad_color=255, return_mask=True)
+        img, mask = resize_with_padding(img, target_size=self.image_size, pad_color=128, return_mask=True)
 
         img_tensor = self.transform(img)
         if img_tensor.shape[0] == 1:
@@ -88,8 +88,8 @@ class PairedDataset(Dataset):
         photo = Image.open(os.path.join(self.photo_dir, fname)).convert("RGB")
         sketch = Image.open(os.path.join(self.sketch_dir, fname)).convert("L")
 
-        photo, mask_p = resize_with_padding(photo, self.image_size, pad_color=(255, 255, 255), return_mask=True)
-        sketch, mask_s = resize_with_padding(sketch, self.image_size, pad_color=255, return_mask=True)
+        photo, mask_p = resize_with_padding(photo, self.image_size, pad_color=(128, 128, 128), return_mask=True)
+        sketch, mask_s = resize_with_padding(sketch, self.image_size, pad_color=128, return_mask=True)
 
         photo_tensor = self.tf_photo(photo)
         sketch_tensor = self.tf_sketch(sketch)
@@ -101,7 +101,7 @@ class PairedDataset(Dataset):
             "mask": mask_tensor
         }
 
-def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False, randomize_padding=False):
+def resize_with_padding(img, target_size=1024, pad_color=128, return_mask=False, randomize_padding=False):
     """
     Resize image with aspect ratio preserved and pad to square target_size.
     Optionally return a binary mask (1=real pixels, 0=padding).

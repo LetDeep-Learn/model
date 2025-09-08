@@ -159,7 +159,7 @@ start_epoch = maybe_resume(resume_source, G, D, optG, optD, scaler)
 # ----------------------------
 # Training config
 # ----------------------------
-EDGE_WEIGHT = 8.0        # strong push on edges
+EDGE_WEIGHT = 10.0        # strong push on edges
 TV_WEIGHT   = 0.1         # light smoothing
 REAL_LABEL  = 0.85         # label smoothing for real
 FAKE_LABEL  = 0.04
@@ -227,7 +227,7 @@ def masked_perceptual(pred, target, mask):
     return criterion_perc(pred_masked, target_masked)
 
 
-def masked_edge(pred, target, mask, eps=1e-8):
+def masked_edge(pred, target, mask, eps=1e-7):
     """
     Apply edge loss while ignoring padded pixels.
     """
@@ -454,8 +454,7 @@ for epoch in range(start_epoch, EPOCHS):
         with torch.amp.autocast("cuda", enabled=USE_AMP):
             fake = G(photo).detach()  # [B, Cf, H, W]
 
-            # prepare fake/sketch for Discriminator: D expects same channel shape for 'sketch' input as during training.
-            # If sketch is 1-channel and fake is 3-ch, convert fake to 1-ch for D; if sketch is 3-ch, ensure fake is 3-ch.
+            # Channel matching for discriminator
             if sketch.size(1) == 1 and fake.size(1) == 3:
                 fake_for_d = fake.mean(dim=1, keepdim=True)
             elif sketch.size(1) == 3 and fake.size(1) == 1:
@@ -463,12 +462,17 @@ for epoch in range(start_epoch, EPOCHS):
             else:
                 fake_for_d = fake
 
-            # Instance noise to stabilize D (applied on the sketch/fake branch only as before)
+            # Instance noise
             sketch_noisy = add_instance_noise(sketch, epoch, EPOCHS)
             fake_noisy   = add_instance_noise(fake_for_d, epoch, EPOCHS)
 
-            logits_real = D(photo, sketch_noisy)
-            logits_fake = D(photo, fake_noisy)
+            # ✅ Apply mask before passing to D
+            photo_masked  = photo * mask
+            sketch_masked = sketch_noisy * mask
+            fake_masked   = fake_noisy * mask
+
+            logits_real = D(photo_masked, sketch_masked)
+            logits_fake = D(photo_masked, fake_masked)
 
             labels_real = torch.full_like(logits_real, REAL_LABEL)
             labels_fake = torch.full_like(logits_fake, FAKE_LABEL)
@@ -476,6 +480,34 @@ for epoch in range(start_epoch, EPOCHS):
             loss_d_real = criterion_gan(logits_real, labels_real)
             loss_d_fake = criterion_gan(logits_fake, labels_fake)
             loss_d = 0.5 * (loss_d_real + loss_d_fake)
+
+
+        # optD.zero_grad(set_to_none=True)
+        # with torch.amp.autocast("cuda", enabled=USE_AMP):
+        #     fake = G(photo).detach()  # [B, Cf, H, W]
+
+        #     # prepare fake/sketch for Discriminator: D expects same channel shape for 'sketch' input as during training.
+        #     # If sketch is 1-channel and fake is 3-ch, convert fake to 1-ch for D; if sketch is 3-ch, ensure fake is 3-ch.
+        #     if sketch.size(1) == 1 and fake.size(1) == 3:
+        #         fake_for_d = fake.mean(dim=1, keepdim=True)
+        #     elif sketch.size(1) == 3 and fake.size(1) == 1:
+        #         fake_for_d = fake.repeat(1,3,1,1)
+        #     else:
+        #         fake_for_d = fake
+
+        #     # Instance noise to stabilize D (applied on the sketch/fake branch only as before)
+        #     sketch_noisy = add_instance_noise(sketch, epoch, EPOCHS)
+        #     fake_noisy   = add_instance_noise(fake_for_d, epoch, EPOCHS)
+
+        #     logits_real = D(photo, sketch_noisy)
+        #     logits_fake = D(photo, fake_noisy)
+
+        #     labels_real = torch.full_like(logits_real, REAL_LABEL)
+        #     labels_fake = torch.full_like(logits_fake, FAKE_LABEL)
+
+        #     loss_d_real = criterion_gan(logits_real, labels_real)
+        #     loss_d_fake = criterion_gan(logits_fake, labels_fake)
+        #     loss_d = 0.5 * (loss_d_real + loss_d_fake)
 
         scaler.scale(loss_d).backward()
         scaler.step(optD)
@@ -487,7 +519,6 @@ for epoch in range(start_epoch, EPOCHS):
         with torch.amp.autocast("cuda", enabled=USE_AMP):
             fake = G(photo)  # fresh fake for generator update
 
-            # prepare fake_for_discriminator similarly
             if sketch.size(1) == 1 and fake.size(1) == 3:
                 fake_for_d = fake.mean(dim=1, keepdim=True)
             elif sketch.size(1) == 3 and fake.size(1) == 1:
@@ -495,8 +526,22 @@ for epoch in range(start_epoch, EPOCHS):
             else:
                 fake_for_d = fake
 
-            logits_fake_for_g = D(photo, fake_for_d)
+            # ✅ Masked version for D
+            photo_masked  = photo * mask
+            fake_masked   = fake_for_d * mask
+
+            logits_fake_for_g = D(photo_masked, fake_masked)
             adv_g = criterion_gan(logits_fake_for_g, torch.ones_like(logits_fake_for_g) * REAL_LABEL)
+            # prepare fake_for_discriminator similarly
+            # if sketch.size(1) == 1 and fake.size(1) == 3:
+            #     fake_for_d = fake.mean(dim=1, keepdim=True)
+            # elif sketch.size(1) == 3 and fake.size(1) == 1:
+            #     fake_for_d = fake.repeat(1,3,1,1)
+            # else:
+            #     fake_for_d = fake
+
+            # logits_fake_for_g = D(photo, fake_for_d)
+            # adv_g = criterion_gan(logits_fake_for_g, torch.ones_like(logits_fake_for_g) * REAL_LABEL)
 
             # --- Masked losses ---
             # L1: compute in grayscale domain and mask padding
