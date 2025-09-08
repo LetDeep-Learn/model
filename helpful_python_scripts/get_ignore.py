@@ -1,7 +1,9 @@
 import os
 
 # Set your root directory here
-root_dir = r"C:\Users\Omkar.Sonawale\Desktop\model"  # Change this to your actual root
+# root_dir = r"C:\Users\Omkar.Sonawale\Desktop\model"
+root_dir = r"D:\Omkar Sonawale\Data Processing\dataset2"  # Change this to your actual root
+  # Change this to your actual root
 
 # Get only visible subdirectories directly under root
 subdirs = [
@@ -9,10 +11,12 @@ subdirs = [
     for name in os.listdir(root_dir)
     if os.path.isdir(os.path.join(root_dir, name)) and not name.startswith(".")
 ]
-
-# Write to .gitignore
-with open(".gitignore", "w", encoding="utf-8") as f:
+with open(r"D:\Omkar Sonawale\Data Processing\names.txt", "w", encoding="utf-8") as f:
     for d in sorted(subdirs):
-        f.write(d + "\n")
+        f.write(d + "   ")
+# Write to .gitignore
+# with open(".gitignore", "w", encoding="utf-8") as f:
+#     for d in sorted(subdirs):
+#         f.write(d + "\n")
 
 print(f".gitignore created with {len(subdirs)} top-level directories.")
