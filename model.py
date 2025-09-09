@@ -2,24 +2,51 @@ import torch
 import torch.nn as nn
 from torchvision.models import vgg16
 
-# ----------------------------
-# UNet Block
-# ----------------------------
+# # ----------------------------
+# # UNet Block
+# # ----------------------------
+# class UNetBlock(nn.Module):
+#     def __init__(self, in_ch, out_ch, down=True, dropout=False):
+#         super().__init__()
+#         if down:
+#             self.seq = nn.Sequential(
+#                 nn.Conv2d(in_ch, out_ch, 4, 2, 1, bias=False),
+#                 nn.BatchNorm2d(out_ch),
+#                 nn.LeakyReLU(0.2, inplace=False)
+#             )
+#         else:
+#             self.seq = nn.Sequential(
+#                 nn.ConvTranspose2d(in_ch, out_ch, 4, 2, 1, bias=False),
+#                 nn.BatchNorm2d(out_ch),
+#                 nn.ReLU(inplace=False)
+#             )
+#         self.do = nn.Dropout(0.5) if dropout else None
+
+#     def forward(self, x):
+#         x = self.seq(x)
+#         if self.do is not None:
+#             x = self.do(x)
+#         return x
+
 class UNetBlock(nn.Module):
     def __init__(self, in_ch, out_ch, down=True, dropout=False):
         super().__init__()
         if down:
+            # Downsampling block
             self.seq = nn.Sequential(
                 nn.Conv2d(in_ch, out_ch, 4, 2, 1, bias=False),
                 nn.BatchNorm2d(out_ch),
-                nn.LeakyReLU(0.2, inplace=False)
+                nn.LeakyReLU(0.2, inplace=True)
             )
         else:
+            # Upsampling block (replace ConvTranspose2d with Upsample + Conv)
             self.seq = nn.Sequential(
-                nn.ConvTranspose2d(in_ch, out_ch, 4, 2, 1, bias=False),
+                nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True),
+                nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=1, padding=1, bias=False),
                 nn.BatchNorm2d(out_ch),
-                nn.ReLU(inplace=False)
+                nn.ReLU(inplace=True)
             )
+
         self.do = nn.Dropout(0.5) if dropout else None
 
     def forward(self, x):
@@ -27,7 +54,6 @@ class UNetBlock(nn.Module):
         if self.do is not None:
             x = self.do(x)
         return x
-
 
 # ----------------------------
 # UNet Generator (pix2pix-style)
@@ -52,8 +78,14 @@ class UNetGenerator(nn.Module):
         self.u5 = UNetBlock(1024, 256, down=False)
         self.u6 = UNetBlock(512, 128, down=False)
         self.u7 = UNetBlock(256, 64, down=False)
+        # self.final = nn.Sequential(
+        #     nn.ConvTranspose2d(128, out_ch, 4, 2, 1),
+        #     nn.Tanh()
+        #     # nn.Sigmoid()
+        # )
         self.final = nn.Sequential(
-            nn.ConvTranspose2d(128, out_ch, 4, 2, 1),
+            nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True),
+            nn.Conv2d(128, out_ch, kernel_size=3, stride=1, padding=1),
             nn.Tanh()
         )
 

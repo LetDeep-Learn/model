@@ -140,38 +140,6 @@ def resize_with_padding(img, target_size=1024, pad_color=128, return_mask=False,
     mask = np.array(mask, dtype="uint8")
 
     return img_padded, mask
-# def resize_with_padding(img, target_size=1024, pad_color=255, return_mask=False):
-#     """
-#     Resize with padding to target_size, return optional binary mask.
-#     Mask: 1 = real pixels, 0 = padding.
-#     """
-#     orig_w, orig_h = img.size
-#     ratio = float(target_size) / max(img.size)
-#     new_size = tuple([int(x * ratio) for x in img.size])
-#     img_resized = img.resize(new_size, Image.BICUBIC)
-
-#     delta_w = target_size - new_size[0]
-#     delta_h = target_size - new_size[1]
-#     padding = (
-#         delta_w // 2,
-#         delta_h // 2,
-#         delta_w - (delta_w // 2),
-#         delta_h - (delta_h // 2),
-#     )
-
-#     # image with padding
-#     img_padded = ImageOps.expand(img_resized, padding, fill=pad_color)
-
-#     if not return_mask:
-#         return img_padded
-
-#     # mask (before padding = 1, padding = 0)
-#     import numpy as np
-#     mask = np.ones((new_size[1], new_size[0]), dtype="uint8")
-#     mask = ImageOps.expand(Image.fromarray(mask), padding, fill=0)
-#     mask = np.array(mask)
-
-#     return img_padded, mask
 
 
 def remove_padding_and_resize(img, original_size):
