@@ -76,7 +76,7 @@ VAL_SPLIT = 0.05
 EPOCHS=50
 EPOCHS_PHASE2 = 50  # integer! number of epochs
 
-LR = 1e-4
+LR = 2e-4
 BETAS = (0.5, 0.999)
 LAMBDA_L1 = 100.0
 LAMBDA_PERC = 1.0

@@ -29,7 +29,7 @@ VAL_SPLIT = 0.05
 
 # Phase 1 & Phase 2 can have different epoch counts
 # EPOCHS_PHASE1 = 100
-EPOCHS = 30
+EPOCHS = 60
 EPOCHS_PHASE2 = 50  # integer! number of epochs
 
 LR = 2e-4
