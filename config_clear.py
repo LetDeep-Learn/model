@@ -68,7 +68,7 @@ PHASE2_RESUME_PATH = os.path.join(DRIVE_PATH, "generator_stage1_epoch30.pth") # 
 # Training hyperparameters
 # ----------------------------
 IMAGE_SIZE =1024 #512
-BATCH_SIZE = 4 #4
+BATCH_SIZE = 8 #4
 VAL_SPLIT = 0.05
 
 # Phase 1 & Phase 2 can have different epoch counts
@@ -84,6 +84,6 @@ SAVE_EVERY = 5
 SAVE_LATEST = True
 
 USE_AMP = True
-SEED = 42
+SEED = 35
 RESUME_PATH = None   # Phase 1 resume path if needed
 

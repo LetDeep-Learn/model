@@ -262,7 +262,7 @@ for epoch in range(start_epoch, EPOCHS):
             latest = os.path.join(DRIVE_PATH, "latest.pth")
             save_ckpt(epoch + 1, G, D, optG, optD, scaler, latest)
         # generator-only snapshot for inference
-        g_only = os.path.join(DRIVE_PATH, f"dataset_new_epoch{epoch+1}.pth")
+        g_only = os.path.join(DRIVE_PATH, f"final_new_epoch{epoch+1}.pth")
         torch.save(G.state_dict(), g_only)
         print(f"Saved checkpoints to {DRIVE_PATH}")
 
